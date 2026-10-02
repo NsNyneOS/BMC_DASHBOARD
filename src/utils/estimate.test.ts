@@ -1,0 +1,1 @@
+import{describe,expect,it}from'vitest';import{isValidEstimate}from'./estimate';describe('estimate',()=>{it('accepts duration format',()=>expect(isValidEstimate('2d 4h')).toBe(true));it('rejects prose',()=>expect(isValidEstimate('two days')).toBe(false))});

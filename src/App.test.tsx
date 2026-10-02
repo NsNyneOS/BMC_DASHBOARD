@@ -1,0 +1,1 @@
+import{render,screen}from'@testing-library/react';import{describe,expect,it}from'vitest';import App from'./App';import{ThemeProvider}from'./theme/ThemeProvider';describe('App',()=>{it('renders without a snapshot update loop',()=>{render(<ThemeProvider><App/></ThemeProvider>);expect(screen.getByRole('heading',{name:/project dashboard/i})).toBeInTheDocument()})});

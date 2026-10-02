@@ -1,0 +1,1 @@
+import{describe,expect,it}from'vitest';import{monthGrid,shiftISO}from'./date';describe('date helpers',()=>{it('shifts ISO dates',()=>expect(shiftISO('2026-01-10',2)).toBe('2026-01-12'));it('builds complete weeks',()=>expect(monthGrid(new Date('2026-10-02')).length%7).toBe(0))});

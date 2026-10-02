@@ -1,0 +1,782 @@
+*{box-sizing:border-box}html{scroll-behavior:smooth;color-scheme:light}html[data-mode=dark]{color-scheme:dark}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Plus Jakarta Sans",Inter,system-ui,sans-serif}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}.accentStrip{position:fixed;inset:0 auto 0 0;width:5px;background:var(--gradient);z-index:200}.topbar{position:sticky;top:0;z-index:50;background:var(--glass);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}.headerInner{min-height:86px;padding:12px 22px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:28px}.logos{display:flex;align-items:center;gap:10px}.logos>span{width:56px;height:52px;display:grid;place-items:center;border-radius:14px}.logos img{max-width:52px;max-height:50px;object-fit:contain}.logos>i{width:1px;height:32px;background:var(--border)}html[data-mode=light] .nyneos img{mix-blend-mode:multiply}html[data-mode=dark] .logos>span{background:#fff;padding:5px}.ranges,.actions,.segments,.row,.cardHead,.sectionHead,.calendarTools{display:flex;align-items:center}.ranges{justify-content:center;gap:6px}.ranges button,.segments button{border:0;border-radius:99px;background:transparent;padding:11px 17px;text-transform:capitalize}.ranges .active,.segments .active{background:var(--active);color:var(--active-text)}.actions{gap:8px}.icon,.create,.pill{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);display:inline-grid;place-items:center;background:var(--surface)}.icon svg,.pill svg,.create svg{width:18px}.create{background:var(--gradient);color:#fff;border:0;box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 25%,transparent)}.search{width:280px;height:46px;background:var(--surface-2);border:1px solid var(--border);border-radius:99px;padding:0 15px;display:flex;align-items:center;gap:9px}.search svg{width:17px;color:var(--muted)}.search input{width:100%;border:0;outline:0;background:transparent}.relative{position:relative}.themeMenu,.menu{position:absolute;right:0;top:54px;width:310px;background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:18px;box-shadow:var(--shadow);z-index:80}.themeMenu h4{margin:0 0 9px}.themeMenu .segments{background:var(--surface-2);border-radius:99px;padding:4px;margin-bottom:18px}.themeMenu .segments button{flex:1;display:flex;align-items:center;gap:5px;justify-content:center;padding:8px}.themeMenu svg{width:15px}.swatch{width:100%;display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:10px;margin-top:7px}.swatch span{position:relative;width:44px;height:27px}.swatch i{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--accent)}.swatch i+i{left:17px;background:var(--accent2)}.swatch svg{margin-left:auto}.swatch.selected{border:2px solid var(--accent)}.menu{width:190px;padding:8px}.menu button{width:100%;border:0;background:transparent;padding:10px;text-align:left;border-radius:10px}main{max-width:1560px;margin:auto;padding:0 22px}.hero{padding:60px 0 28px}.hero>p,.eyebrow{color:var(--muted);margin:0;font-size:15px}.hero h1{font-size:clamp(42px,5vw,68px);font-weight:500;letter-spacing:-.055em;line-height:1;margin:7px 0 32px}.hero h1 span{display:inline-block;width:12px;height:12px;background:var(--gradient);border-radius:50%;margin-left:13px}.projectChips{display:flex;gap:9px;flex-wrap:wrap}.projectChips button{display:flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--surface);padding:9px 12px;border-radius:99px}.projectChips button.active{background:var(--active);color:var(--active-text)}.projectChips i{width:9px;height:9px;border-radius:50%}.projectChips b,.columnHead>span{display:grid;place-items:center;min-width:24px;height:24px;border-radius:50%;background:var(--surface-2);color:var(--text);font-size:11px}.widgets{display:grid;grid-template-columns:.82fr 1.05fr 1.18fr;gap:18px;align-items:stretch}.card{background:var(--surface);border:1px solid var(--border);border-radius:30px;padding:26px;box-shadow:var(--shadow)}.card:hover{transform:translateY(-2px)}.card h2,.section h2{font-size:23px;letter-spacing:-.03em;margin:3px 0;font-weight:600}.cardHead,.sectionHead{justify-content:space-between;gap:14px}.myTasks{grid-row:span 2;min-height:625px}.myTasks .tiny{background:var(--surface-2);padding:4px;border-radius:99px;width:max-content;margin:20px 0 12px}.tiny button{padding:7px 18px}.taskSelect{display:flex;align-items:center;padding:6px;border:1px solid var(--border);border-radius:99px;margin-bottom:14px}.taskSelect b{display:grid;place-items:center;width:36px;height:36px;background:var(--active);color:var(--active-text);border-radius:50%}.taskSelect select{border:0;background:transparent;flex:1;padding:0 10px;outline:0}.taskList{max-height:450px;overflow:auto;display:grid;gap:11px}.miniTask{border:1px solid var(--border);border-radius:21px;padding:17px;background:var(--accent-soft);cursor:pointer}.miniTask.tint1{background:var(--accent2-soft)}.miniTask.tint2{background:color-mix(in srgb,var(--dpdp) 12%,var(--surface))}.miniTask.tint3{background:color-mix(in srgb,var(--web) 12%,var(--surface))}.row{justify-content:space-between}.projectGlyph,.avatar{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700}.check{width:29px;height:29px;border-radius:50%;border:1px solid var(--muted);background:var(--surface)}.check svg{width:14px}.miniTask h3{font-size:15px;margin:13px 0 5px}.miniTask p{color:var(--muted);margin:0 0 14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.chip{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;border:1px solid var(--border);background:var(--surface);border-radius:99px;font-size:10px;margin-right:5px}.chip svg{width:12px}.overdue{color:var(--danger)!important}.donutWrap{height:260px;display:grid;place-items:center;position:relative}.donutWrap svg{width:205px;transform:rotate(-90deg)}.donutWrap circle{fill:none;stroke-width:16}.donutTrack{stroke:var(--border)}.donutProgress{stroke:var(--accent)}.donutDone{stroke:var(--accent2)}.donutWrap>div{position:absolute;text-align:center}.donutWrap strong{font-size:36px;display:block}.donutWrap span{color:var(--muted)}.legend,.chartLegend{display:flex;justify-content:center;gap:16px;flex-wrap:wrap}.legend span,.chartLegend span{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px}.legend i,.chartLegend i{width:8px;height:8px;border-radius:50%;background:var(--border)}i.orange{background:var(--accent)}i.green{background:var(--accent2)}.trend{width:100%;height:260px;overflow:visible}.trend line{stroke:var(--border)}.trend polyline{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:800;animation:draw 1.1s ease}.createdLine{stroke:var(--accent)}.doneLine{stroke:var(--accent2)}.trend circle{fill:var(--surface);stroke:var(--accent);stroke-width:2}.trend text{fill:var(--muted);font-size:11px;text-anchor:middle}.progress{grid-column:2/4}.progressRow{display:grid;grid-template-columns:90px 1fr 170px;align-items:center;gap:15px;margin-top:22px}.progressRow span{font-size:12px;color:var(--muted)}.track{height:14px;background:var(--surface-2);border-radius:99px;overflow:hidden}.track i{display:block;height:100%;border-radius:inherit}.section{margin-top:34px;scroll-margin-top:100px}.sectionHead{margin-bottom:16px}.sectionHead select{padding:10px 13px;border:1px solid var(--border);border-radius:99px;background:var(--surface);margin-left:7px}.board{display:grid;grid-template-columns:repeat(4,minmax(275px,1fr));gap:14px;overflow:auto;scroll-snap-type:x mandatory}.column{background:var(--surface-2);border:1px solid var(--border);border-radius:25px;padding:14px;min-height:430px;scroll-snap-align:start}.columnHead{display:flex;align-items:center;gap:9px;margin-bottom:13px}.columnHead>i{width:10px;height:10px;border-radius:50%;background:var(--muted)}.status1 .columnHead>i{background:var(--accent)}.status2 .columnHead>i{background:var(--warning)}.status3 .columnHead>i{background:var(--accent2)}.columnHead strong{flex:1}.icon.small{width:32px;height:32px}.columnList{min-height:350px;display:grid;align-content:start;gap:10px}.kanbanCard{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:16px;box-shadow:var(--shadow);cursor:grab}.key{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px}.key i{width:8px;height:8px;border-radius:50%}.key span{margin-left:auto}.kanbanCard h3{font-size:14px;margin:12px 0 18px}.cardMeta,.cardBottom{display:flex;justify-content:space-between;align-items:center;font-size:11px}.cardMeta span{display:flex;gap:4px;align-items:center;color:var(--muted)}.cardMeta svg{width:13px}.cardBottom{margin-top:14px}.cardBottom select{max-width:130px;border:0;border-radius:99px;padding:5px;background:var(--surface-2)}.calendarTools{gap:6px}.calendarTools .segments{background:var(--surface-2);padding:4px;border-radius:99px}.calendarTools .pill{width:auto;padding:0 13px}.calendarCard{padding:0;overflow:auto;transform:none!important}.timeline{min-width:1120px}.timelineHeader,.timelineRow{display:grid;grid-template-columns:245px 1fr}.timelineHeader{position:sticky;top:0;background:var(--surface);z-index:3;border-bottom:1px solid var(--border)}.timelineHeader>b,.timelineRow>span,.group{padding:13px}.timelineHeader>div{display:grid;grid-template-columns:repeat(28,1fr)}.timelineHeader span{text-align:center;padding:8px 0;color:var(--muted);font-size:11px}.timelineHeader small{display:block}.group{border-bottom:1px solid var(--border);background:var(--surface-2)}.timelineRow>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid var(--border)}.lane{height:51px;position:relative;border-bottom:1px solid var(--border);background:repeating-linear-gradient(90deg,transparent 0,transparent calc(3.571% - 1px),var(--border) calc(3.571% - 1px),var(--border) 3.571%)}.bar{position:absolute;top:9px;height:33px;border:1px solid;border-radius:99px;overflow:hidden;text-align:left;padding:0 12px;min-width:32px}.bar i{position:absolute;inset:0 auto 0 0;opacity:.3}.month{display:grid;grid-template-columns:repeat(7,1fr);min-width:800px}.month>b{padding:12px;border-bottom:1px solid var(--border);color:var(--muted)}.day{min-height:135px;border:0;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface);text-align:left;padding:9px}.day.today{box-shadow:inset 0 0 0 2px var(--accent)}.day i,.week button{display:block;width:100%;border:0;border-left:3px solid;background:var(--surface-2);padding:4px 6px;margin-top:5px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}.week{display:grid;grid-template-columns:repeat(7,1fr);min-width:900px}.week>div{min-height:370px;padding:12px;border-right:1px solid var(--border)}.week h4{margin:0 0 12px}.siteFooter{display:flex;align-items:center;justify-content:center;gap:16px;color:var(--muted);padding:42px 0}.footerLogos img{filter:grayscale(1);opacity:.6}.footerLogos>span{width:36px;height:34px}.footerLogos img{max-width:34px;max-height:32px}.backdrop{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(7px);z-index:100;display:grid;place-items:center;padding:16px}.modal{width:min(850px,100%);max-height:94vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:26px;box-shadow:var(--shadow);animation:pop .18s ease}.modal>header{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:2}.modal h2{margin:2px 0}.formGrid{display:grid;grid-template-columns:1fr 1fr;gap:15px;padding:22px}.formGrid label{font-size:12px;font-weight:600}.formGrid label>span{float:right;font-weight:400}.formGrid b,.formGrid em{color:var(--danger)}.formGrid em{display:block;font-style:normal;font-size:11px}.formGrid input,.formGrid select,.formGrid textarea,.drawer input,.drawer textarea,.drawer select{display:block;width:100%;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);padding:11px;margin-top:6px}.formGrid textarea{min-height:92px}.full{grid-column:1/-1}.toolbar{color:var(--muted)}fieldset{border:1px solid var(--border);border-radius:13px}.checks{display:flex;gap:15px}.checks label{font-weight:400}.checks input{display:inline;width:auto;margin-right:5px}.textButton{float:right;border:0;background:none;color:var(--accent);padding:0}.inline{display:grid;grid-template-columns:1fr 1fr;gap:5px}.dropzone{border:2px dashed var(--border);border-radius:15px;padding:22px;text-align:center;background:var(--surface-2);color:var(--muted)}.dropzone svg{vertical-align:middle}.dropzone small{display:block}.compactModal{width:min(850px,100%)}.modal footer{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:flex-end;align-items:center;padding:17px 22px}.checkline input{margin-right:7px}.modal footer .pill{width:auto;padding:0 19px;margin-right:8px}.primary{height:44px;border:0;border-radius:99px;background:var(--gradient);color:#fff;font-weight:700;padding:0 24px}.drawerShade{position:fixed;inset:0;border:0;background:var(--overlay);z-index:90}.drawer{position:fixed;right:0;top:0;bottom:0;width:min(520px,100%);background:var(--surface);z-index:91;padding:28px;box-shadow:var(--shadow);overflow:auto}.drawerTitle{font-size:27px!important;font-weight:600;background:transparent!important;margin:24px 0 12px!important}.drawer>textarea{min-height:120px}.detailGrid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:20px}.activity{margin-top:30px;border-top:1px solid var(--border);padding-top:20px}.activity p{display:flex;align-items:center;gap:9px}.danger{display:flex;align-items:center;gap:7px;border:1px solid var(--danger);color:var(--danger);background:transparent;padding:10px 15px;border-radius:99px;margin-top:25px}.danger svg{width:16px}.toast{position:fixed;bottom:24px;right:24px;background:var(--active);color:var(--active-text);padding:14px 18px;border-radius:99px;z-index:150;box-shadow:var(--shadow)}.toast button{border:0;background:transparent;color:var(--accent);font-weight:700}@keyframes draw{from{stroke-dashoffset:800}to{stroke-dashoffset:0}}@keyframes pop{from{opacity:0;transform:scale(.96)}}@media(max-width:1100px){.headerInner{grid-template-columns:auto 1fr}.actions{justify-self:end}.ranges{grid-row:2;grid-column:1/-1;justify-content:flex-start}.widgets{grid-template-columns:1fr 1fr}.progress{grid-column:2}.search{width:220px}}@media(max-width:700px){.headerInner{display:flex;flex-wrap:wrap;padding:10px}.actions{width:100%}.search{flex:1;width:auto}.ranges{order:3;overflow:auto;width:100%;justify-content:flex-start}.logos img{max-width:44px;max-height:42px}.hero{padding-top:38px}.widgets{grid-template-columns:1fr}.myTasks,.progress{grid-column:auto}.board{grid-template-columns:repeat(4,84vw)}.sectionHead{align-items:flex-start;flex-direction:column}.calendarTools{flex-wrap:wrap}.formGrid{grid-template-columns:1fr}.full{grid-column:auto}.progressRow{grid-template-columns:70px 1fr}.progressRow span{grid-column:2}.siteFooter{flex-wrap:wrap;text-align:center}.actions>.icon{display:none}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Unified form controls */
+.formGrid input:not([type="checkbox"]):not([type="radio"]),
+.formGrid select,
+.drawer input:not([type="checkbox"]):not([type="radio"]),
+.drawer select {
+  width:100%;
+  height:var(--control-height);
+  min-height:var(--control-height);
+  padding:var(--control-padding);
+  border:1px solid var(--border);
+  border-radius:var(--control-radius);
+  background:var(--surface-2);
+}
+
+.formGrid textarea,
+.drawer textarea {
+  width:100%;
+  padding:14px 16px;
+  border:1px solid var(--border);
+  border-radius:var(--control-radius);
+  background:var(--surface-2);
+}
+
+.formGrid input:focus,
+.formGrid select:focus,
+.formGrid textarea:focus,
+.drawer input:focus,
+.drawer select:focus,
+.drawer textarea:focus,
+.sectionHead select:focus {
+  border-color:var(--accent);
+  outline:0;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 24%,transparent);
+}
+
+.sectionHead>div:last-child {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.sectionHead>div:last-child select {
+  width:165px;
+  height:var(--control-height);
+  min-height:var(--control-height);
+  margin:0;
+  padding:var(--control-padding);
+  border:1px solid var(--border);
+  border-radius:var(--control-pill-radius);
+  background:var(--surface);
+}
+
+.search {
+  height:var(--control-height);
+  border-radius:var(--control-pill-radius);
+}
+
+.taskSelect {
+  min-height:var(--control-height);
+  border-radius:var(--control-pill-radius);
+}
+
+.taskSelect select {
+  min-height:36px;
+  border-radius:var(--control-pill-radius);
+}
+
+@media(max-width:700px){
+  .sectionHead>div:last-child {
+    width:100%;
+  }
+
+  .sectionHead>div:last-child select {
+    width:50%;
+    min-width:0;
+  }
+}
+
+/* Modern custom dropdown */
+.modernSelect {
+  position:relative;
+  width:100%;
+  margin-top:6px;
+}
+
+.modernSelectTrigger {
+  width:100%;
+  height:var(--control-height);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:var(--control-padding);
+  border:1px solid var(--border);
+  border-radius:var(--control-radius);
+  background:var(--surface-2);
+  color:var(--text);
+  text-align:left;
+  font-weight:500;
+}
+
+.modernSelectTrigger svg {
+  width:17px;
+  height:17px;
+  color:var(--muted);
+  transition:transform .18s ease;
+}
+
+.modernSelectTrigger.open {
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 22%,transparent);
+}
+
+.modernSelectTrigger.open svg {
+  transform:rotate(180deg);
+}
+
+.modernSelectMenu {
+  position:absolute;
+  z-index:130;
+  top:calc(100% + 8px);
+  left:0;
+  width:100%;
+  max-height:260px;
+  overflow:auto;
+  padding:7px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:var(--surface);
+  box-shadow:0 18px 46px color-mix(in srgb,var(--text) 14%,transparent);
+  animation:selectMenuIn .14s ease-out;
+}
+
+.modernSelectOption {
+  width:100%;
+  min-height:40px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:8px 11px;
+  border:0;
+  border-radius:12px;
+  background:transparent;
+  color:var(--text);
+  text-align:left;
+}
+
+.modernSelectOption:hover,
+.modernSelectOption.active {
+  background:var(--surface-2);
+}
+
+.modernSelectOption.selected {
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-weight:600;
+}
+
+.modernSelectOption svg {
+  width:16px;
+  height:16px;
+}
+
+.taskSelectModern {
+  margin:0 0 14px;
+}
+
+.taskSelectModern .modernSelectTrigger {
+  height:50px;
+  border-radius:var(--control-pill-radius);
+  background:var(--surface);
+  padding-left:8px;
+}
+
+.taskSelectModern .modernSelectTrigger span::before {
+  content:attr(data-count);
+}
+
+@keyframes selectMenuIn {
+  from {opacity:0;transform:translateY(-5px) scale(.98)}
+  to {opacity:1;transform:translateY(0) scale(1)}
+}
+.taskSelectModern {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px;
+  background:var(--surface);
+}
+
+.taskSelectModern .modernSelect {
+  flex:1;
+  margin:0;
+}
+
+.taskSelectModern .modernSelectTrigger {
+  height:36px;
+  min-height:36px;
+  padding:0 10px;
+  border:0;
+  border-radius:var(--control-pill-radius);
+  background:transparent;
+  box-shadow:none;
+}
+
+.taskSelectModern .modernSelectMenu {
+  left:-48px;
+  width:calc(100% + 48px);
+  top:calc(100% + 10px);
+}
+
+/* Calendar task-bar readability */
+.timeline .bar {
+  min-width:96px;
+  height:34px;
+  display:flex;
+  align-items:center;
+  border-radius:10px;
+  padding:0 12px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-style:normal;
+  font-weight:600;
+  line-height:1;
+  color:var(--text);
+  box-shadow:0 4px 12px color-mix(in srgb,var(--text) 8%,transparent);
+  z-index:1;
+}
+
+.timeline .bar i {
+  z-index:-1;
+  border-radius:9px 0 0 9px;
+}
+
+.timelineRow {
+  min-height:52px;
+}
+
+.timelineRow .lane {
+  overflow:visible;
+}
+
+.month .day {
+  overflow:hidden;
+}
+
+.month .day i {
+  min-height:26px;
+  border-radius:8px;
+  padding:5px 7px;
+  line-height:16px;
+  font-style:normal;
+}
+.boardFilters {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.boardFilter {
+  width:180px;
+  margin:0;
+}
+
+.boardFilter .modernSelectTrigger {
+  border-radius:var(--control-pill-radius);
+  background:var(--surface);
+}
+
+.boardFilter .modernSelectMenu {
+  min-width:210px;
+}
+
+@media(max-width:700px){
+  .boardFilters {
+    width:100%;
+  }
+
+  .boardFilter {
+    width:50%;
+    min-width:0;
+  }
+
+  .boardFilter .modernSelectMenu {
+    min-width:100%;
+  }
+}
+.projectPill {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:27px;
+  padding:4px 9px;
+  border:1px solid;
+  border-radius:var(--control-pill-radius);
+  background:color-mix(in srgb,currentColor 12%,var(--surface));
+  font-size:10px;
+  font-weight:700;
+  line-height:1;
+  letter-spacing:.01em;
+}
+
+.key .projectPill i {
+  width:7px;
+  height:7px;
+  flex:0 0 7px;
+  background:currentColor;
+}
+
+.issueKey {
+  color:var(--muted);
+  font-weight:600;
+}
+
+.issueType {
+  margin-left:auto;
+  color:var(--muted);
+  text-transform:capitalize;
+}
+.cardBottom {
+  justify-content:flex-start;
+}
+
+.boardFilters .boardFilter:only-child {
+  width:180px;
+}
+
+/* Clean calendar chips without side borders */
+.month .day i,
+.week button {
+  border-left:0;
+}
+
+/* Refined Kanban card layout */
+.key .projectPill {
+  margin-left:0;
+}
+
+.key .issueKey {
+  margin-left:8px;
+}
+
+.key .issueType {
+  margin-left:auto;
+}
+
+.cardStatusSelect {
+  width:132px;
+  margin:0;
+}
+
+.cardStatusSelect .modernSelectTrigger {
+  height:36px;
+  min-height:36px;
+  padding:0 11px;
+  border:0;
+  border-radius:var(--control-pill-radius);
+  background:var(--surface-2);
+  font-size:12px;
+  box-shadow:none;
+}
+
+.cardStatusSelect .modernSelectMenu {
+  min-width:170px;
+  bottom:calc(100% + 7px);
+  top:auto;
+}
+
+.cardStatusSelect .modernSelectOption {
+  min-height:36px;
+  font-size:12px;
+}
+
+/* Status-change confirmation */
+.confirmBackdrop {
+  position:fixed;
+  inset:0;
+  z-index:180;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:var(--overlay);
+  backdrop-filter:blur(7px);
+}
+
+.confirmDialog {
+  position:relative;
+  width:min(430px,100%);
+  padding:28px;
+  border:1px solid var(--border);
+  border-radius:28px;
+  background:var(--surface);
+  box-shadow:var(--shadow);
+  text-align:center;
+  animation:pop .18s ease;
+}
+
+.confirmIcon {
+  width:54px;
+  height:54px;
+  display:grid;
+  place-items:center;
+  margin:0 auto 16px;
+  border-radius:50%;
+  background:var(--accent-soft);
+  color:var(--accent);
+}
+
+.confirmIcon svg {
+  width:25px;
+  height:25px;
+}
+
+.confirmClose {
+  position:absolute;
+  top:16px;
+  right:16px;
+  width:36px;
+  height:36px;
+}
+
+.confirmDialog h2 {
+  margin:0;
+  font-size:23px;
+}
+
+.confirmDialog p {
+  margin:10px auto 24px;
+  max-width:340px;
+  color:var(--muted);
+}
+
+.confirmActions {
+  display:flex;
+  justify-content:center;
+  gap:10px;
+}
+
+.confirmCancel {
+  height:44px;
+  padding:0 20px;
+  border:1px solid var(--border);
+  border-radius:var(--control-pill-radius);
+  background:var(--surface);
+}
+.miniTask > h3:first-child {
+  margin-top:0;
+}
+
+/* Consistent button rounding */
+.pill,
+.primary,
+.confirmCancel,
+.ranges button,
+.segments button,
+.projectChips button,
+.modernSelectTrigger,
+.taskSelect,
+.boardFilter .modernSelectTrigger,
+.cardStatusSelect .modernSelectTrigger {
+  border-radius:var(--button-radius);
+}
+
+.primary,
+.confirmCancel,
+.modal footer .pill {
+  height:var(--button-height);
+  min-height:var(--button-height);
+  min-width:104px;
+  padding:0 22px;
+  border-radius:var(--button-radius);
+}
+
+.icon,
+.create,
+.check,
+.columnHead .small {
+  border-radius:50%;
+}
+
+/* Consistent Calendar controls */
+.calendarTools {
+  gap:8px;
+}
+
+.calendarTools .segments {
+  height:var(--control-height);
+  padding:4px;
+  border-radius:var(--button-radius);
+}
+
+.calendarTools .segments button {
+  height:40px;
+  min-height:40px;
+  padding:0 18px;
+  border-radius:var(--button-radius);
+}
+
+.calendarTools .pill {
+  width:auto;
+  min-width:76px;
+  height:var(--control-height);
+  min-height:var(--control-height);
+  padding:0 18px;
+  border-radius:var(--button-radius);
+}
+
+.calendarTools .pill:has(svg) {
+  width:var(--control-height);
+  min-width:var(--control-height);
+  padding:0;
+  border-radius:50%;
+}
+
+/* Unified component surface rounding */
+.card,
+.column,
+.kanbanCard,
+.miniTask,
+.modal,
+.confirmDialog,
+.themeMenu,
+.menu,
+.modernSelectMenu {
+  border-radius:var(--component-radius);
+}
+
+.drawer {
+  border-radius:var(--component-radius) 0 0 var(--component-radius);
+}
+
+.calendarCard {
+  border-radius:var(--component-radius);
+}
+
+@media(max-width:700px){
+  .drawer {
+    border-radius:var(--component-radius) 0 0 var(--component-radius);
+  }
+}
+
+/* Drawer dropdowns match the shared modern select */
+.drawer .detailGrid .modernSelect {
+  margin-top:6px;
+}
+
+.drawer .detailGrid .modernSelectTrigger {
+  height:var(--control-height);
+  min-height:var(--control-height);
+  border-radius:var(--button-radius);
+  background:var(--surface-2);
+}
+
+.drawer .detailGrid .modernSelectMenu {
+  min-width:100%;
+}
+
+/* Consistent pills inside My Tasks cards */
+.miniTask > div:last-child {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.miniTask .chip {
+  min-width:max-content;
+  height:32px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  margin:0;
+  padding:0 12px;
+  border:1px solid var(--border);
+  border-radius:var(--button-radius);
+  background:var(--surface);
+  color:var(--text-muted, var(--muted));
+  font-size:11px;
+  font-weight:500;
+  line-height:1;
+  text-transform:capitalize;
+}
+
+.miniTask .chip svg {
+  width:14px;
+  height:14px;
+  flex:0 0 14px;
+}
+
+.miniTask .chip.overdue {
+  border-color:color-mix(in srgb,var(--danger) 22%,var(--border));
+  background:color-mix(in srgb,var(--danger) 8%,var(--surface));
+  color:var(--danger);
+}
+
+/* Calendar rounding matches the shared 28px system */
+.month .day i,
+.week button {
+  border-radius:var(--component-radius);
+}
+
+.month .day.today {
+  border-radius:var(--component-radius);
+}
+
+/* White Create Task controls in light mode */
+.modal .formGrid input:not([type="checkbox"]):not([type="radio"]),
+.modal .formGrid textarea,
+.modal .formGrid .modernSelectTrigger,
+.modal .formGrid .modernSelectMenu {
+  background:var(--surface);
+}
+
+/* Kanban delete action */
+.kanbanCard .cardBottom {
+  justify-content:space-between;
+}
+
+.cardDelete {
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  flex:0 0 36px;
+  padding:0;
+  border:1px solid color-mix(in srgb,var(--danger) 30%,var(--border));
+  border-radius:50%;
+  background:color-mix(in srgb,var(--danger) 7%,var(--surface));
+  color:var(--danger);
+}
+
+.cardDelete:hover {
+  border-color:var(--danger);
+  background:color-mix(in srgb,var(--danger) 13%,var(--surface));
+  transform:translateY(-1px);
+}
+
+.cardDelete svg {
+  width:15px;
+  height:15px;
+}
+
+.confirmIcon.dangerIcon {
+  background:color-mix(in srgb,var(--danger) 10%,var(--surface));
+  color:var(--danger);
+}
+
+.confirmDanger {
+  height:var(--button-height);
+  min-height:var(--button-height);
+  padding:0 22px;
+  border:0;
+  border-radius:var(--button-radius);
+  background:var(--danger);
+  color:#fff;
+  font-weight:700;
+}
+/* Delete action lives in the card header */
+.key .cardDelete {
+  width:32px;
+  height:32px;
+  min-width:32px;
+  flex:0 0 32px;
+  margin-left:auto;
+  padding:0;
+  appearance:none;
+  display:grid;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--danger) 24%,var(--border));
+  border-radius:50%;
+  background:color-mix(in srgb,var(--danger) 7%,var(--surface));
+  color:var(--danger);
+  box-shadow:none;
+}
+
+.key .cardDelete svg {
+  width:14px;
+  height:14px;
+}
+
+.key .cardDelete:hover {
+  border-color:var(--danger);
+  background:color-mix(in srgb,var(--danger) 13%,var(--surface));
+  transform:translateY(-1px);
+}
+
+.kanbanCard .cardBottom {
+  justify-content:flex-start;
+}
+
+/* Centered task-details popup; no sidebar drawer */
+.taskPopupBackdrop {
+  position:fixed;
+  inset:0;
+  z-index:90;
+  border:0;
+  background:var(--overlay);
+  backdrop-filter:blur(7px);
+}
+
+.taskPopup {
+  position:fixed;
+  z-index:91;
+  top:50%;
+  left:50%;
+  width:min(720px,calc(100% - 32px));
+  max-height:min(90vh,820px);
+  overflow:auto;
+  padding:30px;
+  border:1px solid var(--border);
+  border-radius:var(--component-radius);
+  background:var(--surface);
+  box-shadow:var(--shadow);
+  transform:translate(-50%,-50%);
+  animation:pop .18s ease;
+}
+
+.taskPopup input:not([type="checkbox"]):not([type="radio"]),
+.taskPopup textarea {
+  display:block;
+  width:100%;
+  padding:12px 16px;
+  border:1px solid var(--border);
+  border-radius:var(--control-radius);
+  background:var(--surface-2);
+  color:var(--text);
+}
+
+.taskPopup > textarea {
+  min-height:132px;
+}
+
+.taskPopup .detailGrid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-top:22px;
+}
+
+.taskPopup .detailGrid label:last-child {
+  grid-column:1/-1;
+  max-width:calc(50% - 8px);
+}
+
+.taskPopup .detailGrid .modernSelect {
+  margin-top:6px;
+}
+
+.taskPopup .detailGrid .modernSelectTrigger {
+  height:var(--control-height);
+  min-height:var(--control-height);
+  border-radius:var(--button-radius);
+  background:var(--surface-2);
+}
+
+.taskPopup .activity {
+  margin-top:30px;
+  padding-top:24px;
+  border-top:1px solid var(--border);
+}
+
+@media(max-width:700px){
+  .taskPopup {
+    width:calc(100% - 20px);
+    max-height:calc(100vh - 20px);
+    padding:22px;
+  }
+
+  .taskPopup .detailGrid {
+    grid-template-columns:1fr;
+  }
+
+  .taskPopup .detailGrid label:last-child {
+    grid-column:auto;
+    max-width:none;
+  }
+}
