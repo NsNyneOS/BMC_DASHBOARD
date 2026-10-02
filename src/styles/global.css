@@ -780,3 +780,156 @@
     max-width:none;
   }
 }
+
+/* Create form stays visually complete without an internal scrollbar */
+.backdrop {
+  display:flex;
+  align-items:safe center;
+  justify-content:center;
+  overflow-y:auto;
+  padding:24px 16px;
+}
+
+.compactModal {
+  flex:0 0 auto;
+  max-height:none;
+  overflow:visible;
+}
+
+.compactModal > header,
+.compactModal footer {
+  position:static;
+}
+
+.compactModal .formGrid {
+  gap:13px 16px;
+  padding-top:18px;
+  padding-bottom:18px;
+}
+
+.compactModal .formGrid textarea {
+  min-height:90px;
+}
+
+/* Open selects always sit above surrounding form content */
+.modernSelect {
+  z-index:1;
+}
+
+.modernSelect:has(.modernSelectMenu) {
+  z-index:500;
+}
+
+.modernSelectMenu {
+  z-index:600;
+}
+
+.compactModal .modernSelectMenu {
+  z-index:700;
+}
+
+@media(max-height:760px) and (min-width:701px){
+  .backdrop {
+    align-items:flex-start;
+  }
+
+  .compactModal {
+    margin:auto 0;
+  }
+
+  .compactModal > header {
+    padding-top:15px;
+    padding-bottom:15px;
+  }
+
+  .compactModal .formGrid {
+    gap:9px 16px;
+    padding-top:12px;
+    padding-bottom:12px;
+  }
+
+  .compactModal .formGrid textarea {
+    min-height:72px;
+  }
+
+  .compactModal footer {
+    padding-top:12px;
+    padding-bottom:12px;
+  }
+}
+
+@media(max-width:700px){
+  .backdrop {
+    align-items:flex-start;
+  }
+
+  .compactModal {
+    margin:auto 0;
+  }
+}
+
+/* Create Task form typography */
+.compactModal form,
+.compactModal .formGrid label,
+.compactModal .formGrid input,
+.compactModal .formGrid textarea,
+.compactModal .modernSelectTrigger,
+.compactModal .modernSelectOption,
+.compactModal .toolbar,
+.compactModal .formGrid em,
+.compactModal footer button {
+  font-size:14px;
+}
+
+/* Locked status inherited from the selected Board column */
+.modernSelect.disabled .modernSelectTrigger {
+  cursor:not-allowed;
+  opacity:.72;
+  background:var(--surface-2);
+}
+
+.modernSelect.disabled .modernSelectTrigger svg {
+  opacity:.45;
+}
+
+/* Preserve the modal's 28px outer corners without clipping dropdowns */
+.compactModal {
+  isolation:isolate;
+  border:1px solid var(--border);
+  border-radius:var(--component-radius);
+  background:var(--surface);
+  box-shadow:var(--shadow);
+}
+
+.compactModal > header {
+  border-radius:var(--component-radius) var(--component-radius) 0 0;
+  background:var(--surface);
+}
+
+.compactModal > form {
+  border-radius:0 0 var(--component-radius) var(--component-radius);
+  background:var(--surface);
+}
+
+.compactModal footer {
+  border-radius:0 0 var(--component-radius) var(--component-radius);
+  background:var(--surface);
+}
+
+.compactModal .formGrid {
+  background:var(--surface);
+}
+
+.compactModal .formGrid > label:first-child {
+  grid-column:1/-1;
+}
+.kanbanCard .cardMeta {
+  justify-content:flex-start;
+}
+
+/* Full-column drop targets support forward and backward moves */
+.column.dropActive {
+  border-color:var(--accent);
+  background:var(--accent-soft);
+  box-shadow:inset 0 0 0 1px var(--accent);
+}

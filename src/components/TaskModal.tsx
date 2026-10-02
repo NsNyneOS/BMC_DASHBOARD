@@ -4,12 +4,11 @@ import{zodResolver}from'@hookform/resolvers/zod';
 import{z}from'zod';
 import{X}from'lucide-react';
 import{useTaskStore}from'../store/useTaskStore';
-import type{IssueType,Priority,ProjectId,Status}from'../types/task';
+import type{Priority,ProjectId,Status}from'../types/task';
 import ModernSelect from'./ModernSelect';
 
 export const taskSchema=z.object({
   project:z.enum(['AML','EKYC','DPDP','WEB']),
-  type:z.enum(['task','bug','story','epic','subtask']),
   summary:z.string().min(1,'Summary is required').max(120),
   description:z.string(),
   status:z.enum(['todo','in_progress','in_review','done']),
@@ -28,13 +27,6 @@ const projectOptions=[
   {value:'EKYC',label:'EKYC'},
   {value:'DPDP',label:'DPDP'},
   {value:'WEB',label:'Website'}
-];
-const issueOptions=[
-  {value:'task',label:'Task'},
-  {value:'bug',label:'Bug'},
-  {value:'story',label:'Story'},
-  {value:'epic',label:'Epic'},
-  {value:'subtask',label:'Sub-task'}
 ];
 const statusOptions=[
   {value:'todo',label:'New'},
@@ -62,17 +54,16 @@ export default function TaskModal({
   const addTask=useTaskStore(state=>state.addTask);
   const{register,handleSubmit,watch,setValue,reset,formState:{errors}}=useForm<Values>({
     resolver:zodResolver(taskSchema),
-    defaultValues:{project:'AML',type:'task',summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''}
+    defaultValues:{project:'AML',summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''}
   });
   const summary=watch('summary');
   const project=watch('project');
-  const issueType=watch('type');
-  const selectedStatus=watch('status');
+    const selectedStatus=watch('status');
   const priority=watch('priority');
 
   useEffect(()=>{
     if(open){
-      reset({project:'AML',type:'task',summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''});
+      reset({project:'AML',summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''});
       setTimeout(()=>document.getElementById('task-summary')?.focus(),0);
     }
   },[open,status,date,reset]);
@@ -88,7 +79,7 @@ export default function TaskModal({
   if(!open)return null;
 
   const submit=(values:Values)=>{
-    const task=addTask({...values,assignee:null,reporter:'u1',startDate:values.startDate||null,dueDate:values.dueDate||null,estimate:null,storyPoints:null,sprint:'Backlog',labels:[],components:[],fixVersion:'',parentKey:null,links:[],attachments:[]});
+    const task=addTask({...values,type:'task',assignee:null,reporter:'u1',startDate:values.startDate||null,dueDate:values.dueDate||null,estimate:null,storyPoints:null,sprint:'Backlog',labels:[],components:[],fixVersion:'',parentKey:null,links:[],attachments:[]});
     onCreated(task.key);
   };
 
@@ -105,10 +96,6 @@ export default function TaskModal({
             <ModernSelect ariaLabel="Project" value={project} options={projectOptions} onChange={value=>setValue('project',value as ProjectId,{shouldValidate:true})}/>
           </label>
 
-          <label>Issue type <b>*</b>
-            <ModernSelect ariaLabel="Issue type" value={issueType} options={issueOptions} onChange={value=>setValue('type',value as IssueType,{shouldValidate:true})}/>
-          </label>
-
           <label className="full">
             Summary <span><b>*</b> {summary.length}/120</span>
             <input id="task-summary" {...register('summary')}/>
@@ -117,12 +104,11 @@ export default function TaskModal({
 
           <label className="full">
             Description
-            <span className="toolbar">B · <i>I</i> · • List · 1. List · Link · Code</span>
             <textarea {...register('description')} placeholder="Add context, acceptance criteria, or links…"/>
           </label>
 
           <label>Status
-            <ModernSelect ariaLabel="Status" value={selectedStatus} options={statusOptions} onChange={value=>setValue('status',value as Status,{shouldValidate:true})}/>
+            <ModernSelect disabled ariaLabel="Status (set by selected column)" value={selectedStatus} options={statusOptions} onChange={value=>setValue('status',value as Status,{shouldValidate:true})}/>
           </label>
 
           <label>Priority
