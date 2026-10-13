@@ -742,11 +742,6 @@
   margin-top:22px;
 }
 
-.taskPopup .detailGrid label:last-child {
-  grid-column:1/-1;
-  max-width:calc(50% - 8px);
-}
-
 .taskPopup .detailGrid .modernSelect {
   margin-top:6px;
 }
@@ -775,10 +770,6 @@
     grid-template-columns:1fr;
   }
 
-  .taskPopup .detailGrid label:last-child {
-    grid-column:auto;
-    max-width:none;
-  }
 }
 
 /* Create form stays visually complete without an internal scrollbar */
