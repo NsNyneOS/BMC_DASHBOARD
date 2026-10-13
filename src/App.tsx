@@ -678,7 +678,6 @@ function SortCard({
           <i />
           {projectName(task.project)}
         </span>
-        <span className="issueKey">{task.key}</span>
         <button
           className="cardDelete"
           aria-label={"Delete " + task.key}
@@ -910,10 +909,16 @@ function Calendar({ create }: { create: (s: Status, d?: string) => void }) {
     const DAY = 44,
       dated = tasks.filter((t) => t.startDate && t.dueDate),
       stamps = dated.flatMap((t) => [t.startDate!, t.dueDate!]).sort(),
-      from = startOfDay(
-        stamps.length && parseISO(stamps[0]) < subDays(anchor, 7)
-          ? subDays(parseISO(stamps[0]), 3)
-          : subDays(anchor, 7),
+      nextWeekday = (d: Date) => {
+        const dow = d.getDay();
+        return dow === 6 ? addDays(d, 2) : dow === 0 ? addDays(d, 1) : d;
+      },
+      from = nextWeekday(
+        startOfDay(
+          stamps.length && parseISO(stamps[0]) < subDays(anchor, 7)
+            ? subDays(parseISO(stamps[0]), 3)
+            : subDays(anchor, 7),
+        ),
       ),
       last = stamps.length ? parseISO(stamps[stamps.length - 1]) : anchor,
       to = addDays(
@@ -923,7 +928,11 @@ function Calendar({ create }: { create: (s: Status, d?: string) => void }) {
       tdays = Array.from(
         { length: differenceInCalendarDays(to, from) + 1 },
         (_, i) => addDays(from, i),
-      );
+      ).filter((d) => d.getDay() !== 0 && d.getDay() !== 6),
+      dayIndex = new Map(tdays.map((d, i) => [toISO(d), i])),
+      slot = (iso: string) =>
+        dayIndex.get(toISO(nextWeekday(startOfDay(parseISO(iso))))) ?? 0,
+      todayISO = toISO(nextWeekday(startOfDay(new Date())));
     return (
       <div
         className="timeline"
@@ -939,15 +948,15 @@ function Calendar({ create }: { create: (s: Status, d?: string) => void }) {
           <div
             style={{ gridTemplateColumns: `repeat(${tdays.length},${DAY}px)` }}
           >
-            {tdays.map((d) => (
+            {tdays.map((d, i) => (
               <span
                 key={d.toISOString()}
-                data-today={toISO(d) === toISO(new Date()) || undefined}
+                data-today={toISO(d) === todayISO || undefined}
                 title={format(d, "d MMM yyyy")}
               >
                 {format(d, "d")}
                 <small>{format(d, "EEEEE")}</small>
-                {d.getDate() === 1 || d === tdays[0] ? (
+                {i === 0 || tdays[i - 1].getMonth() !== d.getMonth() ? (
                   <small>{format(d, "MMM")}</small>
                 ) : null}
               </span>
@@ -974,12 +983,14 @@ function Calendar({ create }: { create: (s: Status, d?: string) => void }) {
             {!collapsed[p] &&
               dated
                 .filter((t) => t.project === p)
+                .sort(
+                  (a, b) =>
+                    a.startDate!.localeCompare(b.startDate!) ||
+                    a.dueDate!.localeCompare(b.dueDate!),
+                )
                 .map((t) => {
-                  const start = differenceInCalendarDays(
-                      parseISO(t.startDate!),
-                      from,
-                    ),
-                    end = differenceInCalendarDays(parseISO(t.dueDate!), from),
+                  const start = slot(t.startDate!),
+                    end = Math.max(start, slot(t.dueDate!)),
                     left = start * DAY,
                     w = Math.max(DAY, (end - start + 1) * DAY),
                     pc = {
@@ -992,7 +1003,7 @@ function Calendar({ create }: { create: (s: Status, d?: string) => void }) {
                   return (
                     <div className="timelineRow" key={t.id}>
                       <span>
-                        {t.key} · {t.summary}
+                        {t.summary}
                       </span>
                       <div className="lane">
                         <button
@@ -1004,7 +1015,7 @@ function Calendar({ create }: { create: (s: Status, d?: string) => void }) {
                             borderColor: color(p),
                             background: `color-mix(in srgb, ${color(p)} 24%, var(--surface))`,
                           }}
-                          title={`${t.key} · ${t.summary} · ${statusName[t.status]}`}
+                          title={`${t.summary} · ${statusName[t.status]}`}
                         >
                           <i
                             style={{ width: `${pc}%`, background: color(p) }}

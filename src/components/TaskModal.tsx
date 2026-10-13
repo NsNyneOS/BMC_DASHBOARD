@@ -53,9 +53,11 @@ export default function TaskModal({
   onCreated:(key:string)=>void;
 }){
   const addTask=useTaskStore(state=>state.addTask);
+  const filterProject=useTaskStore(state=>state.filters.project);
+  const defaultProject:ProjectId=filterProject==='all'?'AML':filterProject;
   const{register,handleSubmit,watch,setValue,reset,formState:{errors}}=useForm<Values>({
     resolver:zodResolver(taskSchema),
-    defaultValues:{project:'AML',summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''}
+    defaultValues:{project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''}
   });
   const summary=watch('summary');
   const project=watch('project');
@@ -64,10 +66,10 @@ export default function TaskModal({
 
   useEffect(()=>{
     if(open){
-      reset({project:'AML',summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''});
+      reset({project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''});
       setTimeout(()=>document.getElementById('task-summary')?.focus(),0);
     }
-  },[open,status,date,reset]);
+  },[open,status,date,defaultProject,reset]);
 
   useEffect(()=>{
     if(!open)return;
