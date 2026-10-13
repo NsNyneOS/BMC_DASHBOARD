@@ -948,3 +948,7 @@
 .timelineHeader>b{z-index:4}
 .group>b{display:block;width:245px;box-sizing:border-box;margin:-13px;padding:13px;background:var(--surface-2);z-index:2}
 .timelineRow>span{border-right:1px solid var(--border);box-sizing:border-box}
+
+button.group{display:block;width:100%;border:0;border-bottom:1px solid var(--border);text-align:left;cursor:pointer;font:inherit;color:inherit}
+button.group>b{display:flex;align-items:center;gap:6px}
+button.group:hover>b{color:var(--accent)}
