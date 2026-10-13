@@ -48,28 +48,37 @@ type task struct {
 	CompletedAt *time.Time   `json:"completedAt"`
 }
 
-const taskSelect = `
+const taskCols = `
 SELECT t.id::text, t.key, t.project::text, t.type::text, t.summary, t.description, t.status::text, t.priority::text,
        t.position, a.username, coalesce(r.username,''), to_char(t.start_date,'YYYY-MM-DD'), to_char(t.due_date,'YYYY-MM-DD'),
        t.estimate, t.story_points, t.sprint, t.labels, t.components, t.fix_version, t.parent_key, t.source,
-       t.created_at, t.updated_at, t.completed_at
-FROM tasks t
+       t.created_at, t.updated_at, t.completed_at,
+       coalesce((SELECT json_agg(json_build_object('type', l.type::text, 'key', l.target_key)) FROM task_links l WHERE l.task_id = t.id), '[]'::json),
+       coalesce((SELECT json_agg(json_build_object('name', f.name, 'size', f.size)) FROM task_attachments f WHERE f.task_id = t.id), '[]'::json)`
+
+// taskSelect builds the task query over a table or CTE (aliased t).
+func taskSelect(src string) string {
+	return taskCols + `
+FROM ` + src + ` t
 LEFT JOIN user_data a ON a.id = t.assignee_id
 LEFT JOIN user_data r ON r.id = t.reporter_id`
+}
 
-func (s *server) queryTasks(ctx context.Context, where string, args ...any) ([]task, error) {
-	rows, err := s.db.Query(ctx, taskSelect+" "+where+" ORDER BY t.project, t.position, t.created_at", args...)
+// queryTasks runs a task query (see taskSelect) in a single round trip.
+func (s *server) queryTasks(ctx context.Context, sql string, args ...any) ([]task, error) {
+	rows, err := s.db.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []task{}
-	idx := map[string]int{}
 	for rows.Next() {
 		var t task
+		var links, atts []byte
 		if err := rows.Scan(&t.ID, &t.Key, &t.Project, &t.Type, &t.Summary, &t.Description, &t.Status, &t.Priority,
 			&t.Order, &t.Assignee, &t.Reporter, &t.StartDate, &t.DueDate, &t.Estimate, &t.StoryPoints, &t.Sprint,
-			&t.Labels, &t.Components, &t.FixVersion, &t.ParentKey, &t.Source, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt); err != nil {
+			&t.Labels, &t.Components, &t.FixVersion, &t.ParentKey, &t.Source, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt,
+			&links, &atts); err != nil {
 			return nil, err
 		}
 		if t.Labels == nil {
@@ -78,49 +87,19 @@ func (s *server) queryTasks(ctx context.Context, where string, args ...any) ([]t
 		if t.Components == nil {
 			t.Components = []string{}
 		}
-		t.Links, t.Attachments = []link{}, []attachment{}
-		idx[t.ID] = len(out)
+		if json.Unmarshal(links, &t.Links) != nil || t.Links == nil {
+			t.Links = []link{}
+		}
+		if json.Unmarshal(atts, &t.Attachments) != nil || t.Attachments == nil {
+			t.Attachments = []attachment{}
+		}
 		out = append(out, t)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	if len(out) == 0 {
-		return out, nil
-	}
-	lr, err := s.db.Query(ctx, `SELECT task_id::text, type::text, target_key FROM task_links`)
-	if err != nil {
-		return nil, err
-	}
-	for lr.Next() {
-		var id string
-		var l link
-		if lr.Scan(&id, &l.Type, &l.Key) == nil {
-			if i, ok := idx[id]; ok {
-				out[i].Links = append(out[i].Links, l)
-			}
-		}
-	}
-	lr.Close()
-	ar, err := s.db.Query(ctx, `SELECT task_id::text, name, size FROM task_attachments`)
-	if err != nil {
-		return nil, err
-	}
-	for ar.Next() {
-		var id string
-		var a attachment
-		if ar.Scan(&id, &a.Name, &a.Size) == nil {
-			if i, ok := idx[id]; ok {
-				out[i].Attachments = append(out[i].Attachments, a)
-			}
-		}
-	}
-	ar.Close()
-	return out, nil
+	return out, rows.Err()
 }
 
 func (s *server) listTasks(w http.ResponseWriter, r *http.Request) {
-	ts, err := s.queryTasks(r.Context(), "")
+	ts, err := s.queryTasks(r.Context(), taskSelect("tasks")+" ORDER BY t.project, t.position, t.created_at")
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -155,7 +134,7 @@ type taskInput struct {
 
 var (
 	validProjects   = set("AML", "EKYC", "DPDP", "WEB")
-	validStatuses   = set("todo", "in_progress", "in_review", "done")
+	validStatuses   = set("todo", "in_progress", "testing", "in_review", "done")
 	validPriorities = set("highest", "high", "medium", "low", "lowest")
 	validTypes      = set("task", "bug", "story", "epic", "subtask")
 )
@@ -193,42 +172,35 @@ func (s *server) createTask(w http.ResponseWriter, r *http.Request) {
 	if in.Components == nil {
 		in.Components = []string{}
 	}
-	ctx := r.Context()
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		writeErr(w, 500, err.Error())
-		return
-	}
-	defer tx.Rollback(ctx)
-	var n int
-	if err := tx.QueryRow(ctx, `UPDATE projects SET task_counter = task_counter + 1 WHERE id=$1::project_id RETURNING task_counter`, in.Project).Scan(&n); err != nil {
-		writeErr(w, 500, err.Error())
-		return
-	}
-	var id string
-	err = tx.QueryRow(ctx, `
-		INSERT INTO tasks (key, project, type, summary, description, status, priority, position, reporter_id, start_date, due_date,
-		                   estimate, story_points, sprint, labels, components, fix_version, parent_key, completed_at)
-		VALUES ($1, $2::project_id, $3::issue_type, $4, $5, $6::task_status, $7::task_priority,
-		        (SELECT count(*) FROM tasks WHERE status=$6::task_status), $8::uuid, $9::date, $10::date,
-		        $11, $12, $13, $14::text[], $15::text[], $16, $17, CASE WHEN $6='done' THEN now() END)
-		RETURNING id::text`,
-		fmt.Sprintf("%s-%d", in.Project, n), in.Project, in.Type, strings.TrimSpace(in.Summary), in.Description, in.Status, in.Priority,
+	// Counter bump, insert and read-back run as one atomic statement (one round trip).
+	ts, err := s.queryTasks(r.Context(), `
+WITH c AS (
+  UPDATE projects SET task_counter = task_counter + 1 WHERE id = $1::project_id RETURNING task_counter
+), n AS (
+  INSERT INTO tasks (key, project, type, summary, description, status, priority, position, reporter_id, start_date, due_date,
+                     estimate, story_points, sprint, labels, components, fix_version, parent_key, completed_at)
+  SELECT $1 || '-' || c.task_counter, $1::project_id, $2::issue_type, $3, $4, $5::task_status, $6::task_priority,
+         (SELECT count(*) FROM tasks WHERE status = $5::task_status), $7::uuid, $8::date, $9::date,
+         $10, $11, $12, $13::text[], $14::text[], $15, $16, CASE WHEN $5 = 'done' THEN now() END
+  FROM c
+  RETURNING *
+)`+taskSelect("n"),
+		in.Project, in.Type, strings.TrimSpace(in.Summary), in.Description, in.Status, in.Priority,
 		currentUser(r).ID, nullable(in.StartDate), nullable(in.DueDate), nullable(in.Estimate), in.StoryPoints, in.Sprint,
-		in.Labels, in.Components, in.FixVersion, nullable(in.ParentKey)).Scan(&id)
-	if err != nil {
-		writeErr(w, 500, err.Error())
+		in.Labels, in.Components, in.FixVersion, nullable(in.ParentKey))
+	if err != nil || len(ts) == 0 {
+		msg := "could not create task"
+		if err != nil {
+			msg = err.Error()
+		}
+		writeErr(w, 500, msg)
 		return
 	}
-	if err := tx.Commit(ctx); err != nil {
-		writeErr(w, 500, err.Error())
-		return
-	}
-	s.respondTask(w, r, id, 201)
+	writeJSON(w, 201, ts[0])
 }
 
 func (s *server) respondTask(w http.ResponseWriter, r *http.Request, id string, code int) {
-	ts, err := s.queryTasks(r.Context(), "WHERE t.id=$1::uuid", id)
+	ts, err := s.queryTasks(r.Context(), taskSelect("tasks")+" WHERE t.id=$1::uuid", id)
 	if err != nil || len(ts) == 0 {
 		writeErr(w, 404, "task not found")
 		return
@@ -300,20 +272,23 @@ func (s *server) updateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	args = append(args, id)
-	tag, err := s.db.Exec(r.Context(), fmt.Sprintf("UPDATE tasks SET %s WHERE id=$%d::uuid", strings.Join(sets, ", "), len(args)), args...)
+	idArg := len(args)
+	q := fmt.Sprintf("WITH u AS (UPDATE tasks SET %s WHERE id=$%d::uuid RETURNING *)", strings.Join(sets, ", "), idArg)
+	if in.Status != nil {
+		args = append(args, currentUser(r).ID, "Status changed to "+*in.Status)
+		q += fmt.Sprintf(`, act AS (INSERT INTO task_activity (task_id, user_id, kind, body)
+		        SELECT id, $%d::uuid, 'status_change', $%d FROM u)`, len(args)-1, len(args))
+	}
+	ts, err := s.queryTasks(r.Context(), q+taskSelect("u"), args...)
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
 	}
-	if tag.RowsAffected() == 0 {
+	if len(ts) == 0 {
 		writeErr(w, 404, "task not found")
 		return
 	}
-	if in.Status != nil {
-		s.db.Exec(r.Context(), `INSERT INTO task_activity (task_id, user_id, kind, body) VALUES ($1::uuid, $2::uuid, 'status_change', $3)`,
-			id, currentUser(r).ID, "Status changed to "+*in.Status)
-	}
-	s.respondTask(w, r, id, 200)
+	writeJSON(w, 200, ts[0])
 }
 
 func (s *server) deleteTask(w http.ResponseWriter, r *http.Request) {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -28,12 +29,23 @@ func writeErr(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }
 
-func cors(origin string, next http.Handler) http.Handler {
+// cors allows the origins listed in a comma-separated CORS_ORIGIN value (default
+// "*": any origin) and echoes back the request's Origin. Auth uses a bearer token,
+// not cookies, so allowing any origin does not expose a logged-in session.
+func cors(origins string, next http.Handler) http.Handler {
+	allowed := map[string]bool{}
+	for _, o := range strings.Split(origins, ",") {
+		if o = strings.TrimRight(strings.TrimSpace(o), "/"); o != "" {
+			allowed[o] = true
+		}
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Vary", "Origin")
+		w.Header().Add("Vary", "Origin")
+		if origin := r.Header.Get("Origin"); allowed["*"] || allowed[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -68,7 +80,10 @@ func New(ctx context.Context) (http.Handler, error) {
 	}
 	// Simple protocol keeps this compatible with Supabase's pooled connections.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
-	cfg.MaxConns = 4
+	cfg.MaxConns = 6
+	cfg.MinConns = 2
+	cfg.MaxConnIdleTime = 10 * time.Minute
+	cfg.HealthCheckPeriod = 30 * time.Second
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -89,7 +104,7 @@ func New(ctx context.Context) (http.Handler, error) {
 	mux.HandleFunc("POST /api/tasks", s.auth(s.createTask))
 	mux.HandleFunc("PATCH /api/tasks/{id}", s.auth(s.updateTask))
 	mux.HandleFunc("DELETE /api/tasks/{id}", s.auth(s.deleteTask))
-	return cors(env("CORS_ORIGIN", "http://localhost:5173"), mux), nil
+	return cors(env("CORS_ORIGIN", "*"), mux), nil
 }
 
 // LoadEnv reads a local .env file (no-op when absent, e.g. on Vercel).

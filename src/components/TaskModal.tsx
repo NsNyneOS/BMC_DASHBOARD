@@ -11,7 +11,7 @@ export const taskSchema=z.object({
   project:z.enum(['AML','EKYC','DPDP','WEB']),
   summary:z.string().min(1,'Summary is required').max(120),
   description:z.string(),
-  status:z.enum(['todo','in_progress','in_review','done']),
+  status:z.enum(['todo','in_progress','testing','in_review','done']),
   priority:z.enum(['highest','high','medium','low','lowest']),
   startDate:z.string(),
   dueDate:z.string()
@@ -30,7 +30,8 @@ const projectOptions=[
 ];
 const statusOptions=[
   {value:'todo',label:'New'},
-  {value:'in_progress',label:'Testing'},
+  {value:'in_progress',label:'In Progress'},
+  {value:'testing',label:'Testing/Review'},
   {value:'in_review',label:'Deploying'},
   {value:'done',label:'Completed'}
 ];

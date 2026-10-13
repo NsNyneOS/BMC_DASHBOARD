@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -57,13 +58,43 @@ func (s *server) auth(next http.HandlerFunc) http.HandlerFunc {
 			writeErr(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
-		u, err := s.userByID(r.Context(), id)
+		u, err := s.cachedUser(r.Context(), id)
 		if err != nil || !u.Active {
 			writeErr(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
 		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
 	}
+}
+
+type cachedEntry struct {
+	u       *user
+	expires time.Time
+}
+
+var (
+	userCache   = map[string]cachedEntry{}
+	userCacheMu sync.RWMutex
+)
+
+const userCacheTTL = time.Minute
+
+// cachedUser avoids a database round trip on every authenticated request.
+func (s *server) cachedUser(ctx context.Context, id string) (*user, error) {
+	userCacheMu.RLock()
+	e, ok := userCache[id]
+	userCacheMu.RUnlock()
+	if ok && time.Now().Before(e.expires) {
+		return e.u, nil
+	}
+	u, err := s.userByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	userCacheMu.Lock()
+	userCache[id] = cachedEntry{u: u, expires: time.Now().Add(userCacheTTL)}
+	userCacheMu.Unlock()
+	return u, nil
 }
 
 func currentUser(r *http.Request) *user { return r.Context().Value(ctxKey{}).(*user) }
