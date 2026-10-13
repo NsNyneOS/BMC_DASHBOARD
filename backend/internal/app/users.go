@@ -1,10 +1,11 @@
-package main
+package app
 
 import (
 	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -34,10 +35,21 @@ func (s *server) userByID(ctx context.Context, id string) (*user, error) {
 
 // seedPasswords sets the initial password for accounts that have none yet.
 func (s *server) seedPasswords(ctx context.Context) {
-	for username, pw := range map[string]string{
-		"nyneos": env("NYNEOS_PASSWORD", ""),
-		"bmc":    env("BMC_PASSWORD", ""),
-	} {
+	rows, err := s.db.Query(ctx, `SELECT username FROM user_data WHERE password_hash IS NULL`)
+	if err != nil {
+		log.Printf("seed passwords: %v", err)
+		return
+	}
+	var missing []string
+	for rows.Next() {
+		var u string
+		if rows.Scan(&u) == nil {
+			missing = append(missing, u)
+		}
+	}
+	rows.Close()
+	for _, username := range missing {
+		pw := env(strings.ToUpper(username)+"_PASSWORD", "")
 		if pw == "" {
 			log.Printf("no password configured for %q; login disabled until set", username)
 			continue
