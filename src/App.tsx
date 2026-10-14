@@ -206,9 +206,15 @@ function Header({ create }: { create: () => void }) {
           <button className="icon" onClick={logout} aria-label="Sign out">
             <LogOut />
           </button>
-          <button className="create" onClick={create} aria-label="Create task">
-            <Plus />
-          </button>
+          {user?.role !== "bmc" && (
+            <button
+              className="create"
+              onClick={create}
+              aria-label="Create task"
+            >
+              <Plus />
+            </button>
+          )}
         </div>
       </div>
     </header>
@@ -416,44 +422,7 @@ function ProjectSummary() {
               </button>
             </header>
             <div className="summaryBody">
-              {open.view === "activities" && (
-                <form
-                  className="dateForm"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void saveDates();
-                  }}
-                >
-                  <label>
-                    Project start
-                    <input
-                      type="date"
-                      value={draft.start}
-                      onChange={(e) =>
-                        setDraft({ ...draft, start: e.target.value })
-                      }
-                    />
-                  </label>
-                  <label>
-                    Project end
-                    <input
-                      type="date"
-                      value={draft.end}
-                      onChange={(e) =>
-                        setDraft({ ...draft, end: e.target.value })
-                      }
-                    />
-                  </label>
-                  <button className="primary" disabled={saving}>
-                    {saving ? "Saving…" : "Save dates"}
-                  </button>
-                  {dateError && (
-                    <p className="loginError" role="alert">
-                      {dateError}
-                    </p>
-                  )}
-                </form>
-              )}
+            
               {open.view === "alerts" ? (
                 current.alerts.length ? (
                   current.alerts.map((a) => (
@@ -470,7 +439,6 @@ function ProjectSummary() {
                             key={k}
                             onClick={() => openTask(k)}
                           >
-                            <span className="issueKey">{t.key}</span>
                             <span>{t.summary}</span>
                             <span className={isOver(t) ? "overdue" : ""}>
                               <Clock3 />
@@ -502,7 +470,6 @@ function ProjectSummary() {
                             key={t.id}
                             onClick={() => openTask(t.key)}
                           >
-                            <span className="issueKey">{t.key}</span>
                             <span>{t.summary}</span>
                             <span className={isOver(t) ? "overdue" : ""}>
                               <Clock3 />
@@ -872,7 +839,13 @@ function Board({ create }: { create: (s: Status) => void }) {
     </section>
   );
 }
-function Calendar({ create }: { create: (s: Status, d?: string) => void }) {
+function Calendar({
+  create,
+  viewOnly = false,
+}: {
+  create: (s: Status, d?: string) => void;
+  viewOnly?: boolean;
+}) {
   const tasks = useTaskStore(useShallow(selectFiltered)),
     select = useTaskStore((s) => s.selectTask),
     [view, setView] = useState<"timeline" | "month" | "week">("timeline"),
@@ -889,6 +862,30 @@ function Calendar({ create }: { create: (s: Status, d?: string) => void }) {
       box.scrollLeft;
     box.scrollLeft = Math.max(0, left - 245 - 44 * 2);
   }, [view, anchor]);
+  // Pin the timeline's date header under the sticky topbar while the browser page scrolls.
+  // The card is overflow-x:auto (horizontal scroll), which would trap native `position: sticky`.
+  useEffect(() => {
+    if (view !== "timeline") return;
+    const box = cardRef.current,
+      head = box?.querySelector<HTMLElement>(".timelineHeader");
+    if (!box || !head) return;
+    const update = () => {
+      const topbar = document.querySelector<HTMLElement>(".topbar"),
+        offset = topbar ? topbar.getBoundingClientRect().bottom : 0,
+        rect = box.getBoundingClientRect(),
+        max = Math.max(0, rect.height - head.offsetHeight),
+        shift = Math.min(max, Math.max(0, offset - rect.top));
+      head.style.transform = shift ? `translateY(${shift}px)` : "";
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      head.style.transform = "";
+    };
+  }, [view, anchor, collapsed, tasks]);
   const days = useMemo(
     () =>
       view === "month"
@@ -1043,7 +1040,8 @@ function Calendar({ create }: { create: (s: Status, d?: string) => void }) {
           <button
             className={iso === toISO(new Date()) ? "day today" : "day"}
             key={iso}
-            onClick={() => create("todo", iso)}
+            style={viewOnly ? { cursor: "default" } : undefined}
+            onClick={() => !viewOnly && create("todo", iso)}
           >
             <span>{format(d, "d")}</span>
             {list.slice(0, 3).map((t) => (
@@ -1152,6 +1150,7 @@ function TaskDetailsModal() {
     select = useTaskStore((s) => s.selectTask),
     update = useTaskStore((s) => s.updateTask),
     remove = useTaskStore((s) => s.deleteTask),
+    readOnly = useAuthStore((s) => s.user?.role === "bmc"),
     [pendingStatus, setPendingStatus] = useState<Status | null>(null);
   if (!id || !task) return null;
   return (
@@ -1179,10 +1178,12 @@ function TaskDetailsModal() {
         <input
           className="drawerTitle"
           value={task.summary}
+          readOnly={readOnly}
           onChange={(event) => update(task.id, { summary: event.target.value })}
         />
         <textarea
           value={task.description}
+          readOnly={readOnly}
           onChange={(event) =>
             update(task.id, { description: event.target.value })
           }
@@ -1192,6 +1193,7 @@ function TaskDetailsModal() {
             Status
             <ModernSelect
               ariaLabel="Task status"
+              disabled={readOnly}
               value={task.status}
               options={statuses.map((status) => ({
                 value: status,
@@ -1207,6 +1209,7 @@ function TaskDetailsModal() {
             Priority
             <ModernSelect
               ariaLabel="Task priority"
+              disabled={readOnly}
               value={task.priority}
               options={[
                 { value: "highest", label: "Highest" },
@@ -1226,6 +1229,8 @@ function TaskDetailsModal() {
               type="date"
               value={task.startDate || ""}
               max={task.dueDate || undefined}
+              readOnly={readOnly}
+              disabled={readOnly}
               onChange={(event) =>
                 update(task.id, { startDate: event.target.value })
               }
@@ -1237,20 +1242,24 @@ function TaskDetailsModal() {
               type="date"
               min={task.startDate || undefined}
               value={task.dueDate || ""}
+              readOnly={readOnly}
+              disabled={readOnly}
               onChange={(event) =>
                 update(task.id, { dueDate: event.target.value })
               }
             />
           </label>
         </div>
-        <button
-          className="danger"
-          onClick={() => {
-            if (confirm("Delete " + task.key + "?")) remove(task.id);
-          }}
-        >
-          <Trash2 /> Delete task
-        </button>
+        {!readOnly && (
+          <button
+            className="danger"
+            onClick={() => {
+              if (confirm("Delete " + task.key + "?")) remove(task.id);
+            }}
+          >
+            <Trash2 /> Delete task
+          </button>
+        )}
       </div>
       <ConfirmDialog
         open={pendingStatus !== null}
@@ -1284,6 +1293,7 @@ function TaskDetailsModal() {
 }
 function Dashboard() {
   const canBoard = useAuthStore((s) => !!s.user?.canManageBoard),
+    viewOnly = useAuthStore((s) => s.user?.role === "bmc"),
     tasks = useTaskStore(useShallow(selectFiltered)),
     all = useTaskStore((s) => s.tasks),
     filters = useTaskStore((s) => s.filters),
@@ -1294,6 +1304,7 @@ function Dashboard() {
     }),
     [toast, setToast] = useState("");
   const create = (status: Status = "todo", date?: string) => {
+    if (viewOnly) return;
     setDefaults({ status, date });
     setModal(true);
   };
@@ -1340,7 +1351,7 @@ function Dashboard() {
           <Progress tasks={tasks} />
         </div>
         {canBoard && <Board create={(s) => create(s)} />}
-        <Calendar create={create} />
+        <Calendar create={create} viewOnly={viewOnly} />
         <footer className="siteFooter">
           <Logos footer />
           <span>

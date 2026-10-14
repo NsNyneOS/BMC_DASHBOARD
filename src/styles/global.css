@@ -945,3 +945,8 @@ button.group>b{display:flex;align-items:center;gap:6px}
 button.group:hover>b{color:var(--accent)}
 
 .headerInner>.actions{justify-self:end}
+
+/* Timeline: no inner vertical scroll. The card only scrolls horizontally; the date header
+   is pinned under the topbar while the page scrolls (offset applied from App.tsx). */
+.calendarCard{max-height:none;overflow-x:auto;overflow-y:hidden}
+.calendarCard .timelineHeader{position:relative;z-index:6;will-change:transform}
