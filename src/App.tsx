@@ -1151,8 +1151,19 @@ function TaskDetailsModal() {
     update = useTaskStore((s) => s.updateTask),
     remove = useTaskStore((s) => s.deleteTask),
     readOnly = useAuthStore((s) => s.user?.role === "bmc"),
-    [pendingStatus, setPendingStatus] = useState<Status | null>(null);
+    [pendingStatus, setPendingStatus] = useState<Status | null>(null),
+    [shiftDays, setShiftDays] = useState("1");
   if (!id || !task) return null;
+  const shiftDates = (sign: 1 | -1) => {
+    const n = parseInt(shiftDays, 10);
+    if (!n || (!task.startDate && !task.dueDate)) return;
+    const move = (d: string | null) =>
+      d ? format(addDays(parseISO(d), sign * Math.abs(n)), "yyyy-MM-dd") : d;
+    update(task.id, {
+      startDate: move(task.startDate),
+      dueDate: move(task.dueDate),
+    });
+  };
   return (
     <>
       <button
@@ -1251,14 +1262,36 @@ function TaskDetailsModal() {
           </label>
         </div>
         {!readOnly && (
-          <button
-            className="danger"
-            onClick={() => {
-              if (confirm("Delete " + task.key + "?")) remove(task.id);
-            }}
-          >
-            <Trash2 /> Delete task
-          </button>
+          <div className="taskPopupFooter">
+            <div className="shiftTimeline">
+              <label className="shiftInput">
+                Shift dates by (days)
+                <input
+                  type="number"
+                  min={1}
+                  value={shiftDays}
+                  aria-label="Days to shift"
+                  onChange={(event) => setShiftDays(event.target.value)}
+                />
+              </label>
+              <div className="shiftButtons">
+                <button type="button" className="pill" onClick={() => shiftDates(-1)}>
+                  Pull back
+                </button>
+                <button type="button" className="primary" onClick={() => shiftDates(1)}>
+                  Push
+                </button>
+              </div>
+            </div>
+            <button
+              className="danger"
+              onClick={() => {
+                if (confirm("Delete " + task.key + "?")) remove(task.id);
+              }}
+            >
+              <Trash2 /> Delete task
+            </button>
+          </div>
         )}
       </div>
       <ConfirmDialog

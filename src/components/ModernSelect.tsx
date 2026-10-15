@@ -1,4 +1,5 @@
 import{useEffect,useId,useRef,useState}from'react';
+import{createPortal}from'react-dom';
 import{Check,ChevronDown}from'lucide-react';
 
 export interface SelectOption{value:string;label:string}
@@ -16,11 +17,13 @@ export default function ModernSelect({
   const[open,setOpen]=useState(false);
   const[activeIndex,setActiveIndex]=useState(()=>Math.max(0,options.findIndex(option=>option.value===value)));
   const root=useRef<HTMLDivElement>(null);
+  const menu=useRef<HTMLDivElement>(null);
+  const[pos,setPos]=useState<{left:number;top:number;width:number;maxHeight:number;up:boolean}|null>(null);
   const listId=useId();
   const selected=options.find(option=>option.value===value)??options[0];
 
   useEffect(()=>{
-    const close=(event:MouseEvent)=>{if(!root.current?.contains(event.target as Node))setOpen(false)};
+    const close=(event:MouseEvent)=>{const t=event.target as Node;if(!root.current?.contains(t)&&!menu.current?.contains(t))setOpen(false)};
     document.addEventListener('mousedown',close);
     return()=>document.removeEventListener('mousedown',close);
   },[]);
@@ -28,6 +31,23 @@ export default function ModernSelect({
   useEffect(()=>{
     setActiveIndex(Math.max(0,options.findIndex(option=>option.value===value)));
   },[value,options]);
+
+  useEffect(()=>{
+    if(!open)return;
+    const place=()=>{
+      const r=root.current?.getBoundingClientRect();
+      if(!r)return;
+      const below=window.innerHeight-r.bottom-18;
+      const above=r.top-18;
+      const up=below<200&&above>below;
+      setPos({left:r.left,top:up?r.top-8:r.bottom+8,width:r.width,maxHeight:Math.max(120,Math.min(260,up?above:below)),up});
+    };
+    place();
+    const onScroll=(e:Event)=>{if(!menu.current?.contains(e.target as Node))setOpen(false)};
+    window.addEventListener('resize',place);
+    window.addEventListener('scroll',onScroll,true);
+    return()=>{window.removeEventListener('resize',place);window.removeEventListener('scroll',onScroll,true)};
+  },[open]);
 
   useEffect(()=>{setOpen(false)},[value]);
 
@@ -73,10 +93,10 @@ export default function ModernSelect({
       <span>{selected?.label}</span>
       <ChevronDown/>
     </button>
-    {open&&!disabled&&<div className="modernSelectMenu" id={listId} role="listbox" aria-label={ariaLabel}>
+    {open&&!disabled&&pos&&createPortal(<div ref={menu} className="modernSelectMenu" style={{position:'fixed',zIndex:2000,left:pos.left,width:pos.width,maxHeight:pos.maxHeight,top:pos.up?undefined:pos.top,bottom:pos.up?window.innerHeight-pos.top:undefined}} id={listId} role="listbox" aria-label={ariaLabel}>
       {options.map((option,index)=><button type="button" role="option" aria-selected={option.value===value} className={option.value===value?'modernSelectOption selected':index===activeIndex?'modernSelectOption active':'modernSelectOption'} key={option.value} onMouseEnter={()=>setActiveIndex(index)} onClick={event=>{event.stopPropagation();choose(index)}}>
         <span>{option.label}</span>{option.value===value&&<Check/>}
       </button>)}
-    </div>}
+    </div>,document.body)}
   </div>;
 }
