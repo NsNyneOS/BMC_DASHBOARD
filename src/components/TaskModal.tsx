@@ -4,8 +4,10 @@ import{zodResolver}from'@hookform/resolvers/zod';
 import{z}from'zod';
 import{X}from'lucide-react';
 import{useTaskStore}from'../store/useTaskStore';
+import{useAuthStore}from'../store/useAuthStore';
 import type{Priority,ProjectId,Status}from'../types/task';
 import ModernSelect from'./ModernSelect';
+import DependencyPicker from'./DependencyPicker';
 
 export const taskSchema=z.object({
   project:z.enum(['AML','EKYC','DPDP','WEB']),
@@ -14,7 +16,9 @@ export const taskSchema=z.object({
   status:z.enum(['todo','in_progress','testing','in_review','done']),
   priority:z.enum(['highest','high','medium','low','lowest']),
   startDate:z.string(),
-  dueDate:z.string()
+  dueDate:z.string(),
+  dependsOn:z.array(z.string()),
+  customDependencies:z.array(z.string())
 }).refine(value=>!value.startDate||!value.dueDate||value.dueDate>=value.startDate,{
   path:['dueDate'],
   message:'Due date must be on or after start date'
@@ -57,16 +61,21 @@ export default function TaskModal({
   const defaultProject:ProjectId=filterProject==='all'?'AML':filterProject;
   const{register,handleSubmit,watch,setValue,reset,formState:{errors}}=useForm<Values>({
     resolver:zodResolver(taskSchema),
-    defaultValues:{project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''}
+    defaultValues:{project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[]}
   });
   const summary=watch('summary');
   const project=watch('project');
     const selectedStatus=watch('status');
   const priority=watch('priority');
+  const dependsOn=watch('dependsOn')??[];
+  const customDependencies=watch('customDependencies')??[];
+  const isNyneos=useAuthStore(state=>state.user?.role==='nyneos');
+  const allTasks=useTaskStore(state=>state.tasks);
+  const projectTasks=allTasks.filter(t=>t.project===project);
 
   useEffect(()=>{
     if(open){
-      reset({project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||''});
+      reset({project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[]});
       setTimeout(()=>document.getElementById('task-summary')?.focus(),0);
     }
   },[open,status,date,defaultProject,reset]);
@@ -96,7 +105,7 @@ export default function TaskModal({
       <form onSubmit={handleSubmit(submit)}>
         <div className="formGrid">
           <label>Project <b>*</b>
-            <ModernSelect ariaLabel="Project" value={project} options={projectOptions} onChange={value=>setValue('project',value as ProjectId,{shouldValidate:true})}/>
+            <ModernSelect ariaLabel="Project" value={project} options={projectOptions} onChange={value=>{setValue('project',value as ProjectId,{shouldValidate:true});setValue('dependsOn',[])}}/>
           </label>
 
           <label className="full">
@@ -120,6 +129,10 @@ export default function TaskModal({
 
           <label>Start date<input type="date" {...register('startDate')}/></label>
           <label>Due date<input type="date" {...register('dueDate')}/>{errors.dueDate&&<em>{errors.dueDate.message}</em>}</label>
+
+          {isNyneos&&<div className="full dependencyField">Depends on
+            <DependencyPicker tasks={projectTasks} selected={dependsOn} custom={customDependencies} onChange={keys=>setValue('dependsOn',keys,{shouldValidate:true})} onCustomChange={values=>setValue('customDependencies',values,{shouldValidate:true})}/>
+          </div>}
         </div>
 
         <footer className="simpleFooter">

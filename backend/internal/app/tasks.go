@@ -13,6 +13,7 @@ type link struct {
 	Type string `json:"type"`
 	Key  string `json:"key"`
 }
+
 type attachment struct {
 	Name string `json:"name"`
 	Size int64  `json:"size"`
@@ -20,38 +21,40 @@ type attachment struct {
 
 // task mirrors the Task interface in src/types/task.ts.
 type task struct {
-	ID          string       `json:"id"`
-	Key         string       `json:"key"`
-	Project     string       `json:"project"`
-	Type        string       `json:"type"`
-	Summary     string       `json:"summary"`
-	Description string       `json:"description"`
-	Status      string       `json:"status"`
-	Priority    string       `json:"priority"`
-	Order       int          `json:"order"`
-	Assignee    *string      `json:"assignee"`
-	Reporter    string       `json:"reporter"`
-	StartDate   *string      `json:"startDate"`
-	DueDate     *string      `json:"dueDate"`
-	Estimate    *string      `json:"estimate"`
-	StoryPoints *int         `json:"storyPoints"`
-	Sprint      string       `json:"sprint"`
-	Labels      []string     `json:"labels"`
-	Components  []string     `json:"components"`
-	FixVersion  string       `json:"fixVersion"`
-	ParentKey   *string      `json:"parentKey"`
-	Links       []link       `json:"links"`
-	Attachments []attachment `json:"attachments"`
-	Source      string       `json:"source"`
-	CreatedAt   time.Time    `json:"createdAt"`
-	UpdatedAt   time.Time    `json:"updatedAt"`
-	CompletedAt *time.Time   `json:"completedAt"`
+	ID                 string       `json:"id"`
+	Key                string       `json:"key"`
+	Project            string       `json:"project"`
+	Type               string       `json:"type"`
+	Summary            string       `json:"summary"`
+	Description        string       `json:"description"`
+	Status             string       `json:"status"`
+	Priority           string       `json:"priority"`
+	Order              int          `json:"order"`
+	Assignee           *string      `json:"assignee"`
+	Reporter           string       `json:"reporter"`
+	StartDate          *string      `json:"startDate"`
+	DueDate            *string      `json:"dueDate"`
+	Estimate           *string      `json:"estimate"`
+	StoryPoints        *int         `json:"storyPoints"`
+	Sprint             string       `json:"sprint"`
+	Labels             []string     `json:"labels"`
+	Components         []string     `json:"components"`
+	FixVersion         string       `json:"fixVersion"`
+	ParentKey          *string      `json:"parentKey"`
+	DependsOn          []string     `json:"dependsOn"`
+	CustomDependencies []string     `json:"customDependencies"`
+	Links              []link       `json:"links"`
+	Attachments        []attachment `json:"attachments"`
+	Source             string       `json:"source"`
+	CreatedAt          time.Time    `json:"createdAt"`
+	UpdatedAt          time.Time    `json:"updatedAt"`
+	CompletedAt        *time.Time   `json:"completedAt"`
 }
 
 const taskCols = `
 SELECT t.id::text, t.key, t.project::text, t.type::text, t.summary, t.description, t.status::text, t.priority::text,
        t.position, a.username, coalesce(r.username,''), to_char(t.start_date,'YYYY-MM-DD'), to_char(t.due_date,'YYYY-MM-DD'),
-       t.estimate, t.story_points, t.sprint, t.labels, t.components, t.fix_version, t.parent_key, t.source,
+       t.estimate, t.story_points, t.sprint, t.labels, t.components, t.fix_version, t.parent_key, t.depends_on, t.custom_dependencies, t.source,
        t.created_at, t.updated_at, t.completed_at,
        coalesce((SELECT json_agg(json_build_object('type', l.type::text, 'key', l.target_key)) FROM task_links l WHERE l.task_id = t.id), '[]'::json),
        coalesce((SELECT json_agg(json_build_object('name', f.name, 'size', f.size)) FROM task_attachments f WHERE f.task_id = t.id), '[]'::json)`
@@ -77,7 +80,7 @@ func (s *server) queryTasks(ctx context.Context, sql string, args ...any) ([]tas
 		var links, atts []byte
 		if err := rows.Scan(&t.ID, &t.Key, &t.Project, &t.Type, &t.Summary, &t.Description, &t.Status, &t.Priority,
 			&t.Order, &t.Assignee, &t.Reporter, &t.StartDate, &t.DueDate, &t.Estimate, &t.StoryPoints, &t.Sprint,
-			&t.Labels, &t.Components, &t.FixVersion, &t.ParentKey, &t.Source, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt,
+			&t.Labels, &t.Components, &t.FixVersion, &t.ParentKey, &t.DependsOn, &t.CustomDependencies, &t.Source, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt,
 			&links, &atts); err != nil {
 			return nil, err
 		}
@@ -86,6 +89,12 @@ func (s *server) queryTasks(ctx context.Context, sql string, args ...any) ([]tas
 		}
 		if t.Components == nil {
 			t.Components = []string{}
+		}
+		if t.CustomDependencies == nil {
+			t.CustomDependencies = []string{}
+		}
+		if t.DependsOn == nil {
+			t.DependsOn = []string{}
 		}
 		if json.Unmarshal(links, &t.Links) != nil || t.Links == nil {
 			t.Links = []link{}
@@ -115,21 +124,23 @@ func nullable(p *string) any {
 }
 
 type taskInput struct {
-	Project     string   `json:"project"`
-	Type        string   `json:"type"`
-	Summary     string   `json:"summary"`
-	Description string   `json:"description"`
-	Status      string   `json:"status"`
-	Priority    string   `json:"priority"`
-	StartDate   *string  `json:"startDate"`
-	DueDate     *string  `json:"dueDate"`
-	Estimate    *string  `json:"estimate"`
-	StoryPoints *int     `json:"storyPoints"`
-	Sprint      string   `json:"sprint"`
-	Labels      []string `json:"labels"`
-	Components  []string `json:"components"`
-	FixVersion  string   `json:"fixVersion"`
-	ParentKey   *string  `json:"parentKey"`
+	Project            string   `json:"project"`
+	Type               string   `json:"type"`
+	Summary            string   `json:"summary"`
+	Description        string   `json:"description"`
+	Status             string   `json:"status"`
+	Priority           string   `json:"priority"`
+	StartDate          *string  `json:"startDate"`
+	DueDate            *string  `json:"dueDate"`
+	Estimate           *string  `json:"estimate"`
+	StoryPoints        *int     `json:"storyPoints"`
+	Sprint             string   `json:"sprint"`
+	Labels             []string `json:"labels"`
+	Components         []string `json:"components"`
+	FixVersion         string   `json:"fixVersion"`
+	ParentKey          *string  `json:"parentKey"`
+	DependsOn          []string `json:"dependsOn"`
+	CustomDependencies []string `json:"customDependencies"`
 }
 
 var (
@@ -172,22 +183,34 @@ func (s *server) createTask(w http.ResponseWriter, r *http.Request) {
 	if in.Components == nil {
 		in.Components = []string{}
 	}
+	if in.DependsOn == nil {
+		in.DependsOn = []string{}
+	}
+	if (len(in.DependsOn) > 0 || len(in.CustomDependencies) > 0) && currentUser(r).Role != "nyneos" {
+		writeErr(w, 403, "only NyneOS users can set dependencies")
+		return
+	}
+	in.CustomDependencies = cleanCustom(in.CustomDependencies)
+	if msg := s.checkDependencies(r.Context(), in.Project, "", in.DependsOn); msg != "" {
+		writeErr(w, 400, msg)
+		return
+	}
 	// Counter bump, insert and read-back run as one atomic statement (one round trip).
 	ts, err := s.queryTasks(r.Context(), `
 WITH c AS (
   UPDATE projects SET task_counter = task_counter + 1 WHERE id = $1::project_id RETURNING task_counter
 ), n AS (
   INSERT INTO tasks (key, project, type, summary, description, status, priority, position, reporter_id, start_date, due_date,
-                     estimate, story_points, sprint, labels, components, fix_version, parent_key, completed_at)
+                     estimate, story_points, sprint, labels, components, fix_version, parent_key, depends_on, custom_dependencies, completed_at)
   SELECT $1 || '-' || c.task_counter, $1::project_id, $2::issue_type, $3, $4, $5::task_status, $6::task_priority,
          (SELECT count(*) FROM tasks WHERE status = $5::task_status), $7::uuid, $8::date, $9::date,
-         $10, $11, $12, $13::text[], $14::text[], $15, $16, CASE WHEN $5 = 'done' THEN now() END
+         $10, $11, $12, $13::text[], $14::text[], $15, $16, $17::text[], $18::text[], CASE WHEN $5 = 'done' THEN now() END
   FROM c
   RETURNING *
 )`+taskSelect("n"),
 		in.Project, in.Type, strings.TrimSpace(in.Summary), in.Description, in.Status, in.Priority,
 		currentUser(r).ID, nullable(in.StartDate), nullable(in.DueDate), nullable(in.Estimate), in.StoryPoints, in.Sprint,
-		in.Labels, in.Components, in.FixVersion, nullable(in.ParentKey))
+		in.Labels, in.Components, in.FixVersion, nullable(in.ParentKey), in.DependsOn, in.CustomDependencies)
 	if err != nil || len(ts) == 0 {
 		msg := "could not create task"
 		if err != nil {
@@ -211,13 +234,15 @@ func (s *server) respondTask(w http.ResponseWriter, r *http.Request, id string, 
 func (s *server) updateTask(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var in struct {
-		Summary     *string `json:"summary"`
-		Description *string `json:"description"`
-		Status      *string `json:"status"`
-		Priority    *string `json:"priority"`
-		StartDate   *string `json:"startDate"`
-		DueDate     *string `json:"dueDate"`
-		Order       *int    `json:"order"`
+		Summary            *string   `json:"summary"`
+		Description        *string   `json:"description"`
+		Status             *string   `json:"status"`
+		Priority           *string   `json:"priority"`
+		StartDate          *string   `json:"startDate"`
+		DueDate            *string   `json:"dueDate"`
+		Order              *int      `json:"order"`
+		DependsOn          *[]string `json:"dependsOn"`
+		CustomDependencies *[]string `json:"customDependencies"`
 	}
 	if json.NewDecoder(r.Body).Decode(&in) != nil {
 		writeErr(w, 400, "invalid body")
@@ -267,6 +292,25 @@ func (s *server) updateTask(w http.ResponseWriter, r *http.Request) {
 	if in.Order != nil {
 		add("position", "", *in.Order)
 	}
+	if (in.DependsOn != nil || in.CustomDependencies != nil) && currentUser(r).Role != "nyneos" {
+		writeErr(w, 403, "only NyneOS users can set dependencies")
+		return
+	}
+	if in.CustomDependencies != nil {
+		add("custom_dependencies", "::text[]", cleanCustom(*in.CustomDependencies))
+	}
+	if in.DependsOn != nil {
+		var project, key string
+		if err := s.db.QueryRow(r.Context(), `SELECT project::text, key FROM tasks WHERE id=$1::uuid`, id).Scan(&project, &key); err != nil {
+			writeErr(w, 404, "task not found")
+			return
+		}
+		if msg := s.checkDependencies(r.Context(), project, key, *in.DependsOn); msg != "" {
+			writeErr(w, 400, msg)
+			return
+		}
+		add("depends_on", "::text[]", *in.DependsOn)
+	}
 	if len(sets) == 0 {
 		s.respondTask(w, r, id, 200)
 		return
@@ -302,4 +346,63 @@ func (s *server) deleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// checkDependencies validates a depends_on list: every key must be an existing task of the
+// same project, must not be the task itself and must not (transitively) depend on it.
+// It returns an error message, or "" when the list is valid.
+func (s *server) checkDependencies(ctx context.Context, project, selfKey string, keys []string) string {
+	if len(keys) == 0 {
+		return ""
+	}
+	var found int
+	if err := s.db.QueryRow(ctx, `SELECT count(DISTINCT key) FROM tasks WHERE key = ANY($1::text[]) AND project = $2::project_id`,
+		keys, project).Scan(&found); err != nil {
+		return err.Error()
+	}
+	distinct := map[string]bool{}
+	for _, k := range keys {
+		if k == selfKey {
+			return "a task cannot depend on itself"
+		}
+		distinct[k] = true
+	}
+	if found != len(distinct) {
+		return "dependencies must be existing tasks of the same project"
+	}
+	if selfKey == "" {
+		return ""
+	}
+	var cycle bool
+	if err := s.db.QueryRow(ctx, `
+WITH RECURSIVE chain(key) AS (
+  SELECT unnest(depends_on) FROM tasks WHERE key = ANY($1::text[])
+  UNION
+  SELECT unnest(t.depends_on) FROM tasks t JOIN chain c ON t.key = c.key
+)
+SELECT EXISTS (SELECT 1 FROM chain WHERE key = $2) OR $2 = ANY($1::text[])`, keys, selfKey).Scan(&cycle); err != nil {
+		return err.Error()
+	}
+	if cycle {
+		return "dependency would create a circular chain"
+	}
+	return ""
+}
+
+// cleanCustom trims, de-duplicates and bounds free-text dependencies.
+func cleanCustom(in []string) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, v := range in {
+		v = strings.TrimSpace(v)
+		if v == "" || seen[v] {
+			continue
+		}
+		if len(v) > 200 {
+			v = v[:200]
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
 }

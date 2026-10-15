@@ -1,5 +1,6 @@
-import { useMemo, useEffect, useRef, useState, type ReactNode } from "react";
+import { useMemo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
+import DependencyPicker, { dependents } from "./components/DependencyPicker";
 import {
   DndContext,
   PointerSensor,
@@ -839,6 +840,24 @@ function Board({ create }: { create: (s: Status) => void }) {
     </section>
   );
 }
+type DepLink = {
+  id: string;
+  from: string;
+  to: string;
+  d: string;
+  ax: number;
+  ay: number;
+  late: boolean;
+  color: string;
+};
+const hasDependency = (t: Task) =>
+  (t.dependsOn?.length ?? 0) + (t.customDependencies?.length ?? 0) > 0;
+const dependencyTitle = (t: Task) =>
+  hasDependency(t)
+    ? " · Depends on: " +
+      [...(t.dependsOn ?? []), ...(t.customDependencies ?? [])].join(", ")
+    : "";
+
 function Calendar({
   create,
   viewOnly = false,
@@ -851,7 +870,88 @@ function Calendar({
     [view, setView] = useState<"timeline" | "month" | "week">("timeline"),
     [anchor, setAnchor] = useState(new Date()),
     cardRef = useRef<HTMLDivElement>(null),
-    [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+    [collapsed, setCollapsed] = useState<Record<string, boolean>>({}),
+    [links, setLinks] = useState<DepLink[]>([]),
+    [linkSize, setLinkSize] = useState({ w: 0, h: 0 }),
+    [hoverKey, setHoverKey] = useState<string | null>(null),
+    // Visible lane area (inside the timeline): connectors are clipped so they never draw over the sticky
+    // task-name column or the date header.
+    [clip, setClip] = useState({ x: 245, y: 0 });
+  // Measure the rendered bars and draw an elbow connector from every task to the tasks it depends on.
+  useLayoutEffect(() => {
+    const box = cardRef.current?.querySelector<HTMLElement>(".timeline");
+    if (view !== "timeline" || !box) {
+      setLinks([]);
+      return;
+    }
+    const measure = () => {
+      const origin = box.getBoundingClientRect(),
+        bars = new Map<string, HTMLElement>();
+      box
+        .querySelectorAll<HTMLElement>(".bar[data-key]")
+        .forEach((el) => bars.set(el.dataset.key!, el));
+      const next: DepLink[] = [];
+      for (const t of tasks) {
+        const target = bars.get(t.key);
+        if (!target || !t.dependsOn?.length) continue;
+        const tr = target.getBoundingClientRect();
+        for (const depKey of t.dependsOn) {
+          const src = bars.get(depKey),
+            pred = tasks.find((x) => x.key === depKey);
+          if (!src || !pred) continue;
+          const sr = src.getBoundingClientRect(),
+            x1 = sr.right - origin.left,
+            y1 = sr.top + sr.height / 2 - origin.top,
+            x2 = tr.left - origin.left,
+            y2 = tr.top + tr.height / 2 - origin.top,
+            gap = 14,
+            ym = (y1 + y2) / 2,
+            d =
+              x2 >= x1 + gap * 2
+                ? `M${x1} ${y1} H${x1 + gap} V${y2} H${x2 - 1}`
+                : `M${x1} ${y1} H${x1 + gap} V${ym} H${x2 - gap} V${y2} H${x2 - 1}`,
+            // A predecessor that is not done and ends on/after this task's start is blocking it.
+            late =
+              pred.status !== "done" &&
+              !!pred.dueDate &&
+              !!t.startDate &&
+              pred.dueDate >= t.startDate;
+          next.push({
+            id: `${depKey}>${t.key}`,
+            from: depKey,
+            to: t.key,
+            d,
+            ax: x2,
+            ay: y2,
+            late,
+            color: color(pred.project),
+          });
+        }
+      }
+      setLinks(next);
+      setLinkSize({ w: box.offsetWidth, h: box.offsetHeight });
+      updateClip();
+    };
+    const updateClip = () => {
+      const origin = box.getBoundingClientRect(),
+        label = box.querySelector<HTMLElement>(".timelineHeader > b"),
+        head = box.querySelector<HTMLElement>(".timelineHeader");
+      setClip({
+        x: label ? label.getBoundingClientRect().right - origin.left : 245,
+        y: head ? head.getBoundingClientRect().bottom - origin.top : 0,
+      });
+    };
+    const card = cardRef.current;
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", updateClip, { passive: true });
+    card?.addEventListener("scroll", updateClip, { passive: true });
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", updateClip);
+      card?.removeEventListener("scroll", updateClip);
+    };
+  }, [view, anchor, collapsed, tasks]);
   useEffect(() => {
     const box = cardRef.current,
       el = box?.querySelector<HTMLElement>("[data-today]");
@@ -1001,18 +1101,28 @@ function Calendar({
                     <div className="timelineRow" key={t.id}>
                       <span>
                         {t.summary}
+                        {t.dependsOn?.length ? (
+                          <small className="depNote">
+                            ↳ after {t.dependsOn.join(", ")}
+                          </small>
+                        ) : null}
                       </span>
                       <div className="lane">
                         <button
                           onClick={() => select(t.id)}
-                          className="bar"
+                          className={hasDependency(t) ? "bar dependent" : "bar"}
+                          data-key={t.key}
+                          onMouseEnter={() => setHoverKey(t.key)}
+                          onMouseLeave={() => setHoverKey(null)}
+                          onFocus={() => setHoverKey(t.key)}
+                          onBlur={() => setHoverKey(null)}
                           style={{
                             left,
                             width: w,
                             borderColor: color(p),
                             background: `color-mix(in srgb, ${color(p)} 24%, var(--surface))`,
                           }}
-                          title={`${t.summary} · ${statusName[t.status]}`}
+                          title={`${t.summary} · ${statusName[t.status]}${dependencyTitle(t)}`}
                         >
                           <i
                             style={{ width: `${pc}%`, background: color(p) }}
@@ -1025,6 +1135,44 @@ function Calendar({
                 })}
           </div>
         ))}
+        <svg
+          className="depLinks"
+          width={linkSize.w}
+          height={linkSize.h}
+          aria-hidden
+        >
+          <defs>
+            <clipPath id="depLinksClip">
+              <rect
+                x={clip.x}
+                y={clip.y}
+                width={Math.max(0, linkSize.w - clip.x)}
+                height={Math.max(0, linkSize.h - clip.y)}
+              />
+            </clipPath>
+          </defs>
+          {links.map((l) => {
+            const active = hoverKey === l.from || hoverKey === l.to,
+              dim = hoverKey !== null && !active,
+              stroke = l.late ? "var(--danger)" : l.color;
+            return (
+              <g
+                key={l.id}
+                clipPath="url(#depLinksClip)"
+                className={
+                  "depLink" + (l.late ? " late" : "") + (active ? " active" : "") + (dim ? " dim" : "")
+                }
+              >
+                <path d={l.d} stroke={stroke} />
+                <path
+                  d={`M${l.ax} ${l.ay} l-8 -5 v10 z`}
+                  fill={stroke}
+                  stroke={stroke}
+                />
+              </g>
+            );
+          })}
+        </svg>
       </div>
     );
   };
@@ -1047,6 +1195,8 @@ function Calendar({
             {list.slice(0, 3).map((t) => (
               <i
                 key={t.id}
+                className={hasDependency(t) ? "dependent" : undefined}
+                title={t.summary + dependencyTitle(t)}
                 style={{
                   border: "1px solid " + color(t.project),
                   borderRadius: 999,
@@ -1080,6 +1230,8 @@ function Calendar({
               .map((t) => (
                 <button
                   key={t.id}
+                  className={hasDependency(t) ? "dependent" : undefined}
+                  title={t.summary + dependencyTitle(t)}
                   onClick={() => select(t.id)}
                   style={{
                     border: "1px solid " + color(t.project),
@@ -1141,6 +1293,12 @@ function Calendar({
       <div className="card calendarCard" ref={cardRef}>
         {view === "timeline" ? timeline() : view === "month" ? month() : week()}
       </div>
+      {view === "timeline" && links.length > 0 && (
+        <p className="depLegend">
+          <span className="swatch ok" /> Arrow runs from the task that must finish first to the task that depends on it
+          <span className="swatch late" /> Red: the earlier task is not done and runs past the start of the dependent task
+        </p>
+      )}
     </section>
   );
 }
@@ -1152,7 +1310,8 @@ function TaskDetailsModal() {
     remove = useTaskStore((s) => s.deleteTask),
     readOnly = useAuthStore((s) => s.user?.role !== "nyneos"),
     [pendingStatus, setPendingStatus] = useState<Status | null>(null),
-    [shiftDays, setShiftDays] = useState("1");
+    [shiftDays, setShiftDays] = useState("1"),
+    allTasks = useTaskStore((s) => s.tasks);
   if (!id || !task) return null;
   const shiftDates = (sign: 1 | -1) => {
     const n = parseInt(shiftDays, 10);
@@ -1260,6 +1419,24 @@ function TaskDetailsModal() {
               }
             />
           </label>
+        </div>
+        <div className="dependencyField">
+          Depends on
+          <DependencyPicker
+            tasks={allTasks.filter(
+              (t) =>
+                t.project === task.project &&
+                t.key !== task.key &&
+                !dependents(allTasks, task.key).has(t.key),
+            )}
+            selected={task.dependsOn ?? []}
+            custom={task.customDependencies ?? []}
+            disabled={readOnly}
+            onChange={(keys) => update(task.id, { dependsOn: keys })}
+            onCustomChange={(values) =>
+              update(task.id, { customDependencies: values })
+            }
+          />
         </div>
         {!readOnly && (
           <div className="taskPopupFooter">

@@ -19,15 +19,15 @@ async function request<T>(path:string,init:RequestInit={}):Promise<T>{
 export interface AuthUser{id:string;username:string;name:string;initials:string;role:'nyneos'|'bmc';canManageBoard:boolean}
 export interface ProjectAlert{id:string;message:string;severity:'info'|'warning'|'critical';taskKey:string|null}
 export interface ProjectMeta{id:string;name:string;startDate:string|null;endDate:string|null;alerts:ProjectAlert[]}
-export type TaskPatch=Partial<Pick<Task,'summary'|'description'|'status'|'priority'|'startDate'|'dueDate'|'order'>>;
+export type TaskPatch=Partial<Pick<Task,'summary'|'description'|'status'|'priority'|'startDate'|'dueDate'|'order'|'dependsOn'|'customDependencies'>>;
 
 export const api={
   login:(username:string,password:string)=>request<{token:string;user:AuthUser}>('/api/auth/login',{method:'POST',body:JSON.stringify({username,password})}),
   me:()=>request<AuthUser>('/api/auth/me'),
-  tasks:()=>request<Task[]>('/api/tasks'),
+  tasks:()=>request<Task[]>('/api/tasks').then(list=>list.map(t=>({...t,dependsOn:t.dependsOn??[],customDependencies:t.customDependencies??[]}))),
   projects:()=>request<ProjectMeta[]>('/api/projects'),
   updateProject:(id:string,dates:{startDate:string;endDate:string})=>request<void>(`/api/projects/${id}`,{method:'PATCH',body:JSON.stringify(dates)}),
-  createTask:(data:unknown)=>request<Task>('/api/tasks',{method:'POST',body:JSON.stringify(data)}),
+  createTask:(data:unknown)=>request<Task>('/api/tasks',{method:'POST',body:JSON.stringify(data)}).then(t=>({...t,dependsOn:t.dependsOn??[],customDependencies:t.customDependencies??[]})),
   updateTask:(id:string,patch:TaskPatch)=>request<Task>(`/api/tasks/${id}`,{method:'PATCH',body:JSON.stringify(patch)}),
   deleteTask:(id:string)=>request<void>(`/api/tasks/${id}`,{method:'DELETE'})
 };

@@ -1,11 +1,11 @@
 import{useEffect,useId,useRef,useState}from'react';
 import{createPortal}from'react-dom';
-import{Check,ChevronDown}from'lucide-react';
+import{Check,ChevronDown,Search}from'lucide-react';
 
 export interface SelectOption{value:string;label:string}
 
 export default function ModernSelect({
-  value,options,onChange,ariaLabel,className='',disabled=false
+  value,options,onChange,ariaLabel,className='',disabled=false,searchable=false
 }:{
   value:string;
   options:SelectOption[];
@@ -13,14 +13,21 @@ export default function ModernSelect({
   ariaLabel:string;
   className?:string;
   disabled?:boolean;
+  /** Adds a search box at the top of the menu that filters the options by label. */
+  searchable?:boolean;
 }){
   const[open,setOpen]=useState(false);
   const[activeIndex,setActiveIndex]=useState(()=>Math.max(0,options.findIndex(option=>option.value===value)));
   const root=useRef<HTMLDivElement>(null);
   const menu=useRef<HTMLDivElement>(null);
   const[pos,setPos]=useState<{left:number;top:number;width:number;maxHeight:number;up:boolean}|null>(null);
+  const searchRef=useRef<HTMLInputElement>(null);
+  const[query,setQuery]=useState('');
   const listId=useId();
   const selected=options.find(option=>option.value===value)??options[0];
+  const needle=query.trim().toLowerCase();
+  // The empty-value entry is the prompt ("Select a task…"), so it is not a search result.
+  const visible=searchable&&needle?options.filter(option=>option.value!==''&&option.label.toLowerCase().includes(needle)):options;
 
   useEffect(()=>{
     const close=(event:MouseEvent)=>{const t=event.target as Node;if(!root.current?.contains(t)&&!menu.current?.contains(t))setOpen(false)};
@@ -51,17 +58,26 @@ export default function ModernSelect({
 
   useEffect(()=>{setOpen(false)},[value]);
 
+  useEffect(()=>{
+    if(!open||!searchable)return;
+    setQuery('');
+    const id=setTimeout(()=>searchRef.current?.focus(),0);
+    return()=>clearTimeout(id);
+  },[open,searchable]);
+
+  useEffect(()=>{if(searchable)setActiveIndex(0)},[query,searchable]);
+
   useEffect(()=>{if(disabled)setOpen(false)},[disabled]);
 
   const choose=(index:number)=>{
-    const option=options[index];
+    const option=visible[index];
     if(!option||disabled)return;
     setOpen(false);
     setActiveIndex(index);
     onChange(option.value);
   };
 
-  const handleKey=(event:React.KeyboardEvent<HTMLButtonElement>)=>{
+  const handleKey=(event:React.KeyboardEvent<HTMLElement>)=>{
     if(disabled)return;
     if(event.key==='Escape'){setOpen(false);return}
     if(event.key==='ArrowDown'||event.key==='ArrowUp'){
@@ -69,7 +85,7 @@ export default function ModernSelect({
       if(!open){setOpen(true);return}
       setActiveIndex(current=>{
         const direction=event.key==='ArrowDown'?1:-1;
-        return(current+direction+options.length)%options.length;
+        return visible.length?(current+direction+visible.length)%visible.length:0;
       });
     }
     if((event.key==='Enter'||event.key===' ')&&open){
@@ -94,7 +110,19 @@ export default function ModernSelect({
       <ChevronDown/>
     </button>
     {open&&!disabled&&pos&&createPortal(<div ref={menu} className="modernSelectMenu" style={{position:'fixed',zIndex:2000,left:pos.left,width:pos.width,maxHeight:pos.maxHeight,top:pos.up?undefined:pos.top,bottom:pos.up?window.innerHeight-pos.top:undefined}} id={listId} role="listbox" aria-label={ariaLabel}>
-      {options.map((option,index)=><button type="button" role="option" aria-selected={option.value===value} className={option.value===value?'modernSelectOption selected':index===activeIndex?'modernSelectOption active':'modernSelectOption'} key={option.value} onMouseEnter={()=>setActiveIndex(index)} onClick={event=>{event.stopPropagation();choose(index)}}>
+      {searchable&&<div className="modernSelectSearch">
+        <Search/>
+        <input
+          ref={searchRef}
+          value={query}
+          placeholder="Search…"
+          aria-label={`Search ${ariaLabel}`}
+          onChange={event=>setQuery(event.target.value)}
+          onKeyDown={event=>{if(event.key==='ArrowDown'||event.key==='ArrowUp'||event.key==='Enter'||event.key==='Escape')handleKey(event)}}
+        />
+      </div>}
+      {searchable&&visible.length===0&&<p className="modernSelectEmpty">No matches</p>}
+      {visible.map((option,index)=><button type="button" role="option" aria-selected={option.value===value} className={option.value===value?'modernSelectOption selected':index===activeIndex?'modernSelectOption active':'modernSelectOption'} key={option.value} onMouseEnter={()=>setActiveIndex(index)} onClick={event=>{event.stopPropagation();choose(index)}}>
         <span>{option.label}</span>{option.value===value&&<Check/>}
       </button>)}
     </div>,document.body)}

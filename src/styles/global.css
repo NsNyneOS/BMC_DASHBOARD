@@ -1078,3 +1078,274 @@ button.group:hover>b{color:var(--accent)}
   white-space:nowrap;
   margin:0;
 }
+
+.dependencyField {
+  margin-top:20px;
+  font-size:12px;
+  font-weight:600;
+}
+
+.dependencyPicker {
+  margin-top:6px;
+  font-weight:400;
+}
+
+.dependencyChips {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:8px;
+}
+
+.dependencyChip {
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  max-width:100%;
+  padding:5px 6px 5px 12px;
+  border:1px solid var(--border);
+  border-radius:99px;
+  background:var(--surface-2);
+  font-size:12px;
+}
+
+.dependencyChip b {
+  color:var(--accent);
+}
+
+.dependencyChip em {
+  min-width:0;
+  max-width:220px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-style:normal;
+  color:var(--muted);
+}
+
+.dependencyChip button {
+  display:grid;
+  place-items:center;
+  width:22px;
+  height:22px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  color:var(--muted);
+}
+
+.dependencyChip button:hover {
+  background:var(--border);
+}
+
+.dependencyChip svg {
+  width:13px;
+  height:13px;
+}
+
+/* Kanban column: pager pinned to the bottom edge */
+.column {
+  display:flex;
+  flex-direction:column;
+}
+
+.column .columnList {
+  flex:1 1 auto;
+}
+
+.column .columnPager {
+  margin-top:auto;
+  padding:12px 0 2px;
+}
+
+.dependencyChip.custom {
+  border-style:dashed;
+  border-color:var(--accent);
+  background:var(--accent-soft);
+}
+
+.customDependency {
+  display:flex;
+  gap:8px;
+  margin-top:8px;
+}
+
+.customDependency input {
+  flex:1;
+  min-width:0;
+  height:var(--control-height);
+  padding:0 16px;
+  border:1px solid var(--border);
+  border-radius:var(--button-radius);
+  background:var(--surface-2);
+  color:var(--text);
+}
+
+.customDependency .pill {
+  width:auto;
+  height:var(--control-height);
+  padding:0 16px;
+  gap:6px;
+  border-radius:var(--button-radius);
+  font-weight:600;
+}
+
+.customDependency .pill svg {
+  width:15px;
+}
+
+/* Calendar: tasks that depend on something get a dashed, striped box */
+.bar.dependent,
+.day i.dependent,
+.week button.dependent {
+  border-style:dashed !important;
+  border-width:2px !important;
+  background-image:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--text) 9%,transparent) 6px 12px) !important;
+}
+
+.bar.dependent .barText::before,
+.day i.dependent::before,
+.week button.dependent::before {
+  content:"⛓ ";
+}
+
+/* Dependency picker: breathing room between chips, the task select and the custom input */
+.dependencyPicker {
+  display:grid;
+  gap:14px;
+  margin-top:10px;
+}
+
+.dependencyPicker .dependencyChips {
+  margin-bottom:0;
+  gap:10px;
+}
+
+.dependencyPicker .customDependency {
+  margin-top:0;
+  gap:12px;
+}
+
+/* Search box pinned at the top of a searchable select menu */
+.modernSelectSearch {
+  position:sticky;
+  top:-7px;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:-7px -7px 6px;
+  padding:10px 12px;
+  border-bottom:1px solid var(--border);
+  border-radius:18px 18px 0 0;
+  background:var(--surface);
+}
+
+.modernSelectSearch svg {
+  width:16px;
+  height:16px;
+  flex:none;
+  color:var(--muted);
+}
+
+.modernSelectSearch input {
+  flex:1;
+  min-width:0;
+  height:32px;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:var(--text);
+}
+
+.modernSelectEmpty {
+  margin:0;
+  padding:12px;
+  color:var(--muted);
+  font-size:13px;
+  text-align:center;
+}
+
+/* Timeline: dependency connectors between bars */
+.timeline {
+  position:relative;
+}
+
+.depLinks {
+  position:absolute;
+  top:0;
+  left:0;
+  z-index:3;
+  overflow:visible;
+  pointer-events:none;
+}
+
+.depLink path {
+  fill:none;
+  stroke-width:2;
+  stroke-linejoin:round;
+  stroke-linecap:round;
+  opacity:.8;
+  transition:opacity .15s ease, stroke-width .15s ease;
+}
+
+.depLink path:last-child {
+  stroke-width:1;
+}
+
+.depLink.late path:first-child {
+  stroke-dasharray:6 4;
+}
+
+.depLink.active path {
+  opacity:1;
+}
+
+.depLink.active path:first-child {
+  stroke-width:3;
+}
+
+.depLink.dim path {
+  opacity:.18;
+}
+
+.depNote {
+  display:block;
+  margin-top:-4px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.2;
+}
+
+.timelineRow > span {
+  line-height:1.25;
+  padding-top:9px;
+  padding-bottom:9px;
+}
+
+.depLegend {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px 18px;
+  margin:10px 4px 0;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.depLegend .swatch {
+  display:inline-block;
+  width:22px;
+  height:0;
+  margin-right:6px;
+  border-top:2px solid var(--accent);
+  vertical-align:middle;
+}
+
+.depLegend .swatch.late {
+  border-top:2px dashed var(--danger);
+  margin-left:0;
+}
