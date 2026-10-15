@@ -1150,7 +1150,7 @@ function TaskDetailsModal() {
     select = useTaskStore((s) => s.selectTask),
     update = useTaskStore((s) => s.updateTask),
     remove = useTaskStore((s) => s.deleteTask),
-    readOnly = useAuthStore((s) => s.user?.role === "bmc"),
+    readOnly = useAuthStore((s) => s.user?.role !== "nyneos"),
     [pendingStatus, setPendingStatus] = useState<Status | null>(null),
     [shiftDays, setShiftDays] = useState("1");
   if (!id || !task) return null;
