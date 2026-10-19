@@ -1128,7 +1128,7 @@ function Calendar({
                         {t.summary}
                         {t.dependsOn?.length ? (
                           <small className="depNote">
-                            ↳ dependent on {t.dependsOn.join(", ")}
+                            ↳ dependent
                           </small>
                         ) : null}
                       </span>
