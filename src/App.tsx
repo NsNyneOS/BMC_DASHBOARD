@@ -1423,7 +1423,7 @@ function TaskDetailsModal() {
         </div>
         {!readOnly && (
           <div className="visibilityField">
-            Visibility (BMC &amp; KYC credentials)
+            Visibility
             <VisibilityToggle
               visible={task.clientVisible !== false}
               onChange={(value) => update(task.id, { clientVisible: value })}

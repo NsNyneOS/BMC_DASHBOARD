@@ -133,7 +133,7 @@ export default function TaskModal({
           <label>Start date<input type="date" {...register('startDate')}/></label>
           <label>Due date<input type="date" {...register('dueDate')}/>{errors.dueDate&&<em>{errors.dueDate.message}</em>}</label>
 
-          {isNyneos&&<div className="full visibilityField">Visibility (BMC &amp; KYC credentials)
+          {isNyneos&&<div className="full visibilityField">Visibility
             <VisibilityToggle visible={clientVisible} onChange={value=>setValue('clientVisible',value)}/>
           </div>}
 
