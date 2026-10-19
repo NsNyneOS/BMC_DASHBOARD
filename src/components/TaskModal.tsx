@@ -8,6 +8,7 @@ import{useAuthStore}from'../store/useAuthStore';
 import type{Priority,ProjectId,Status}from'../types/task';
 import ModernSelect from'./ModernSelect';
 import DependencyPicker from'./DependencyPicker';
+import VisibilityToggle from'./VisibilityToggle';
 
 export const taskSchema=z.object({
   project:z.enum(['AML','EKYC','DPDP','WEB']),
@@ -18,7 +19,8 @@ export const taskSchema=z.object({
   startDate:z.string(),
   dueDate:z.string(),
   dependsOn:z.array(z.string()),
-  customDependencies:z.array(z.string())
+  customDependencies:z.array(z.string()),
+  clientVisible:z.boolean()
 }).refine(value=>!value.startDate||!value.dueDate||value.dueDate>=value.startDate,{
   path:['dueDate'],
   message:'Due date must be on or after start date'
@@ -61,7 +63,7 @@ export default function TaskModal({
   const defaultProject:ProjectId=filterProject==='all'?'AML':filterProject;
   const{register,handleSubmit,watch,setValue,reset,formState:{errors}}=useForm<Values>({
     resolver:zodResolver(taskSchema),
-    defaultValues:{project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[]}
+    defaultValues:{project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[],clientVisible:true}
   });
   const summary=watch('summary');
   const project=watch('project');
@@ -69,13 +71,14 @@ export default function TaskModal({
   const priority=watch('priority');
   const dependsOn=watch('dependsOn')??[];
   const customDependencies=watch('customDependencies')??[];
+  const clientVisible=watch('clientVisible');
   const isNyneos=useAuthStore(state=>state.user?.role==='nyneos');
   const allTasks=useTaskStore(state=>state.tasks);
   const projectTasks=allTasks.filter(t=>t.project===project);
 
   useEffect(()=>{
     if(open){
-      reset({project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[]});
+      reset({project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[],clientVisible:true});
       setTimeout(()=>document.getElementById('task-summary')?.focus(),0);
     }
   },[open,status,date,defaultProject,reset]);
@@ -129,6 +132,10 @@ export default function TaskModal({
 
           <label>Start date<input type="date" {...register('startDate')}/></label>
           <label>Due date<input type="date" {...register('dueDate')}/>{errors.dueDate&&<em>{errors.dueDate.message}</em>}</label>
+
+          {isNyneos&&<div className="full visibilityField">Visibility (BMC &amp; KYC credentials)
+            <VisibilityToggle visible={clientVisible} onChange={value=>setValue('clientVisible',value)}/>
+          </div>}
 
           {isNyneos&&<div className="full dependencyField">Depends on
             <DependencyPicker tasks={projectTasks} selected={dependsOn} custom={customDependencies} onChange={keys=>setValue('dependsOn',keys,{shouldValidate:true})} onCustomChange={values=>setValue('customDependencies',values,{shouldValidate:true})}/>

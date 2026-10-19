@@ -50,7 +50,7 @@ func (s *server) listProjects(w http.ResponseWriter, r *http.Request) {
 	ar, err := s.db.Query(ctx, `
 		SELECT a.id::text, a.project::text, a.message, a.severity, t.key
 		FROM project_alerts a LEFT JOIN tasks t ON t.id = a.task_id
-		WHERE NOT a.resolved ORDER BY a.created_at DESC`)
+		WHERE NOT a.resolved AND (t.id IS NULL OR t.client_visible OR $1) ORDER BY a.created_at DESC`, currentUser(r).Role == "nyneos")
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return

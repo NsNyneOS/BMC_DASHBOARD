@@ -1,6 +1,7 @@
 import { useMemo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import DependencyPicker, { dependents } from "./components/DependencyPicker";
+import VisibilityToggle from "./components/VisibilityToggle";
 import {
   DndContext,
   PointerSensor,
@@ -1420,6 +1421,15 @@ function TaskDetailsModal() {
             />
           </label>
         </div>
+        {!readOnly && (
+          <div className="visibilityField">
+            Visibility (BMC &amp; KYC credentials)
+            <VisibilityToggle
+              visible={task.clientVisible !== false}
+              onChange={(value) => update(task.id, { clientVisible: value })}
+            />
+          </div>
+        )}
         <div className="dependencyField">
           Depends on
           <DependencyPicker
