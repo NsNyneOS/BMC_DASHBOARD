@@ -848,6 +848,8 @@ type DepLink = {
   d: string;
   ax: number;
   ay: number;
+  lx: number;
+  ly: number;
   late: boolean;
   color: string;
 };
@@ -900,6 +902,7 @@ function Calendar({
           const src = bars.get(depKey),
             pred = tasks.find((x) => x.key === depKey);
           if (!src || !pred) continue;
+          // The line runs from the task that must finish first (right edge) to the dependent task (left edge).
           const sr = src.getBoundingClientRect(),
             x1 = sr.right - origin.left,
             y1 = sr.top + sr.height / 2 - origin.top,
@@ -907,10 +910,29 @@ function Calendar({
             y2 = tr.top + tr.height / 2 - origin.top,
             gap = 14,
             ym = (y1 + y2) / 2,
-            d =
-              x2 >= x1 + gap * 2
-                ? `M${x1} ${y1} H${x1 + gap} V${y2} H${x2 - 1}`
-                : `M${x1} ${y1} H${x1 + gap} V${ym} H${x2 - gap} V${y2} H${x2 - 1}`,
+            roomy = x2 >= x1 + gap * 2,
+            lo = Math.min(y1, y2),
+            hi = Math.max(y1, y2),
+            // Pick a vertical run that does not cut through any other bar between the two rows.
+            blocked = (x: number) =>
+              [...bars].some(([k, el]) => {
+                if (k === depKey || k === t.key) return false;
+                const r = el.getBoundingClientRect();
+                return (
+                  x > r.left - origin.left - 3 &&
+                  x < r.right - origin.left + 3 &&
+                  r.bottom - origin.top > lo &&
+                  r.top - origin.top < hi
+                );
+              }),
+            vx = roomy
+              ? ([x1 + gap, x2 - gap, (x1 + x2) / 2].find((x) => !blocked(x)) ?? x1 + gap)
+              : 0,
+            d = roomy
+              ? `M${x1} ${y1} H${vx} V${y2} H${x2 - 1}`
+              : `M${x1} ${y1} H${x1 + gap} V${ym} H${x2 - gap} V${y2} H${x2 - 1}`,
+            lx = roomy ? (vx + x2) / 2 : (x2 - gap + x1 + gap) / 2,
+            ly = (roomy ? y2 : ym) - 5,
             // A predecessor that is not done and ends on/after this task's start is blocking it.
             late =
               pred.status !== "done" &&
@@ -924,6 +946,8 @@ function Calendar({
             d,
             ax: x2,
             ay: y2,
+            lx,
+            ly,
             late,
             color: color(pred.project),
           });
@@ -1100,11 +1124,11 @@ function Calendar({
                     }[t.status];
                   return (
                     <div className="timelineRow" key={t.id}>
-                      <span>
+                      <span className={hasDependency(t) ? "dependentName" : undefined}>
                         {t.summary}
                         {t.dependsOn?.length ? (
                           <small className="depNote">
-                            ↳ after {t.dependsOn.join(", ")}
+                            ↳ dependent on {t.dependsOn.join(", ")}
                           </small>
                         ) : null}
                       </span>
@@ -1120,8 +1144,8 @@ function Calendar({
                           style={{
                             left,
                             width: w,
-                            borderColor: color(p),
-                            background: `color-mix(in srgb, ${color(p)} 24%, var(--surface))`,
+                            borderColor: hasDependency(t) ? "var(--danger)" : color(p),
+                            background: `color-mix(in srgb, ${hasDependency(t) ? "var(--danger)" : color(p)} 24%, var(--surface))`,
                           }}
                           title={`${t.summary} · ${statusName[t.status]}${dependencyTitle(t)}`}
                         >
@@ -1155,7 +1179,7 @@ function Calendar({
           {links.map((l) => {
             const active = hoverKey === l.from || hoverKey === l.to,
               dim = hoverKey !== null && !active,
-              stroke = l.late ? "var(--danger)" : l.color;
+              stroke = "var(--danger)";
             return (
               <g
                 key={l.id}
@@ -1170,6 +1194,9 @@ function Calendar({
                   fill={stroke}
                   stroke={stroke}
                 />
+                <text x={l.lx} y={l.ly} className="depLabel">
+                  dependent upon
+                </text>
               </g>
             );
           })}
@@ -1296,8 +1323,8 @@ function Calendar({
       </div>
       {view === "timeline" && links.length > 0 && (
         <p className="depLegend">
-          <span className="swatch ok" /> Arrow runs from the task that must finish first to the task that depends on it
-          <span className="swatch late" /> Red: the earlier task is not done and runs past the start of the dependent task
+          <span className="swatch ok" /> Blinking red line runs from the task that must finish first to the dependent task
+          <span className="swatch late" /> Dashed: the earlier task is not done and runs past the start of the dependent task
         </p>
       )}
     </section>

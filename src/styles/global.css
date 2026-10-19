@@ -1360,3 +1360,15 @@ button.group:hover>b{color:var(--accent)}
 .visibilityToggle.on .visibilityTrack{background:var(--accent2)}
 .visibilityToggle.on .visibilityTrack i{transform:translateX(16px)}
 .taskPopup .visibilityField{margin-top:16px}
+
+.depLink path{stroke:var(--danger)}
+.depLabel{fill:var(--danger);font-size:10px;font-weight:700;text-anchor:middle;paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.depLink.dim .depLabel{opacity:.25}
+.depLegend .swatch.ok{background:var(--danger)}
+
+@keyframes depBlink{0%,100%{opacity:1}50%{opacity:.25}}
+.depLink:not(.dim) path,.depLink:not(.dim) .depLabel{animation:depBlink 1.4s ease-in-out infinite}
+
+.depNote{color:color-mix(in srgb,var(--danger) 60%,var(--surface))}
+
+.timelineRow > span.dependentName{background:color-mix(in srgb,var(--danger) 10%,var(--surface))}
