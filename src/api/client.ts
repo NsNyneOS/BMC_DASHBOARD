@@ -19,7 +19,7 @@ async function request<T>(path:string,init:RequestInit={}):Promise<T>{
 export interface AuthUser{id:string;username:string;name:string;initials:string;role:'nyneos'|'bmc';canManageBoard:boolean}
 export interface ProjectAlert{id:string;message:string;severity:'info'|'warning'|'critical';taskKey:string|null}
 export interface ProjectMeta{id:string;name:string;startDate:string|null;endDate:string|null;alerts:ProjectAlert[]}
-export type TaskPatch=Partial<Pick<Task,'summary'|'description'|'status'|'priority'|'startDate'|'dueDate'|'order'|'dependsOn'|'customDependencies'|'clientVisible'>>;
+export type TaskPatch=Partial<Pick<Task,'summary'|'description'|'status'|'priority'|'startDate'|'dueDate'|'order'|'dependsOn'|'customDependencies'|'clientVisible'|'ownerTeam'>>;
 
 export const api={
   login:(username:string,password:string)=>request<{token:string;user:AuthUser}>('/api/auth/login',{method:'POST',body:JSON.stringify({username,password})}),

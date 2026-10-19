@@ -1074,7 +1074,19 @@ function Calendar({
               <span
                 key={d.toISOString()}
                 data-today={toISO(d) === todayISO || undefined}
-                title={format(d, "d MMM yyyy")}
+                title={format(d, "d MMM yyyy") + " · click to start the timeline here"}
+                className="dayHead"
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  cardRef.current?.scrollTo({ left: i * DAY, behavior: "smooth" })
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    cardRef.current?.scrollTo({ left: i * DAY, behavior: "smooth" });
+                  }
+                }}
               >
                 {format(d, "d")}
                 <small>{format(d, "EEEEE")}</small>
@@ -1122,14 +1134,30 @@ function Calendar({
                       in_review: 80,
                       done: 100,
                     }[t.status];
+                  const barColor = hasDependency(t)
+                    ? "var(--danger)"
+                    : t.ownerTeam === "bmc"
+                      ? "var(--success, #16a34a)"
+                      : color(p);
                   return (
                     <div className="timelineRow" key={t.id}>
-                      <span className={hasDependency(t) ? "dependentName" : undefined}>
+                      <span
+                        className={
+                          hasDependency(t)
+                            ? "dependentName"
+                            : t.ownerTeam === "bmc"
+                              ? "bmcName"
+                              : undefined
+                        }
+                      >
                         {t.summary}
                         {t.dependsOn?.length ? (
                           <small className="depNote">
                             ↳ dependent
                           </small>
+                        ) : null}
+                        {t.ownerTeam === "bmc" ? (
+                          <small className="bmcNote">BMC</small>
                         ) : null}
                       </span>
                       <div className="lane">
@@ -1144,8 +1172,8 @@ function Calendar({
                           style={{
                             left,
                             width: w,
-                            borderColor: hasDependency(t) ? "var(--danger)" : color(p),
-                            background: `color-mix(in srgb, ${hasDependency(t) ? "var(--danger)" : color(p)} 24%, var(--surface))`,
+                            borderColor: barColor,
+                            background: `color-mix(in srgb, ${barColor} 24%, var(--surface))`,
                           }}
                           title={`${t.summary} · ${statusName[t.status]}${dependencyTitle(t)}`}
                         >
@@ -1321,10 +1349,21 @@ function Calendar({
       <div className="card calendarCard" ref={cardRef}>
         {view === "timeline" ? timeline() : view === "month" ? month() : week()}
       </div>
-      {view === "timeline" && links.length > 0 && (
+      {view === "timeline" && (
         <p className="depLegend">
-          <span className="swatch ok" /> Blinking red line runs from the task that must finish first to the dependent task
-          <span className="swatch late" /> Dashed: the earlier task is not done and runs past the start of the dependent task
+          <span>
+            <span className="swatch bmc" /> Green: BMC side task
+          </span>
+          {links.length > 0 && (
+            <>
+              <span>
+                <span className="swatch ok" /> Blinking red line runs from the task that must finish first to the dependent task
+              </span>
+              <span>
+                <span className="swatch late" /> Dashed: the earlier task is not done and runs past the start of the dependent task
+              </span>
+            </>
+          )}
         </p>
       )}
     </section>
@@ -1338,6 +1377,7 @@ function TaskDetailsModal() {
     remove = useTaskStore((s) => s.deleteTask),
     readOnly = useAuthStore((s) => s.user?.role !== "nyneos"),
     [pendingStatus, setPendingStatus] = useState<Status | null>(null),
+    [confirmDelete, setConfirmDelete] = useState(false),
     [shiftDays, setShiftDays] = useState("1"),
     allTasks = useTaskStore((s) => s.tasks);
   if (!id || !task) return null;
@@ -1448,6 +1488,22 @@ function TaskDetailsModal() {
             />
           </label>
         </div>
+        <div className="teamVisRow">
+        <label className="teamField">
+          Team
+          <ModernSelect
+            ariaLabel="Task team"
+            disabled={readOnly}
+            value={task.ownerTeam ?? "nyneos"}
+            options={[
+              { value: "nyneos", label: "NyneOS" },
+              { value: "bmc", label: "BMC" },
+            ]}
+            onChange={(value) =>
+              update(task.id, { ownerTeam: value as Task["ownerTeam"] })
+            }
+          />
+        </label>
         {!readOnly && (
           <div className="visibilityField">
             Visibility
@@ -1457,6 +1513,7 @@ function TaskDetailsModal() {
             />
           </div>
         )}
+        </div>
         <div className="dependencyField">
           Depends on
           <DependencyPicker
@@ -1499,15 +1556,25 @@ function TaskDetailsModal() {
             </div>
             <button
               className="danger"
-              onClick={() => {
-                if (confirm("Delete " + task.key + "?")) remove(task.id);
-              }}
+              onClick={() => setConfirmDelete(true)}
             >
               <Trash2 /> Delete task
             </button>
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmDelete}
+        danger
+        title="Delete task?"
+        confirmLabel="Yes, delete task"
+        message={task.key + " · " + task.summary + " will be permanently deleted. This cannot be undone."}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={() => {
+          setConfirmDelete(false);
+          remove(task.id);
+        }}
+      />
       <ConfirmDialog
         open={pendingStatus !== null}
         title="Change task status?"

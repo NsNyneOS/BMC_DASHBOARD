@@ -47,6 +47,7 @@ type task struct {
 	Attachments        []attachment `json:"attachments"`
 	Source             string       `json:"source"`
 	ClientVisible      bool         `json:"clientVisible"`
+	OwnerTeam          string       `json:"ownerTeam"`
 	CreatedAt          time.Time    `json:"createdAt"`
 	UpdatedAt          time.Time    `json:"updatedAt"`
 	CompletedAt        *time.Time   `json:"completedAt"`
@@ -55,7 +56,7 @@ type task struct {
 const taskCols = `
 SELECT t.id::text, t.key, t.project::text, t.type::text, t.summary, t.description, t.status::text, t.priority::text,
        t.position, a.username, coalesce(r.username,''), to_char(t.start_date,'YYYY-MM-DD'), to_char(t.due_date,'YYYY-MM-DD'),
-       t.estimate, t.story_points, t.sprint, t.labels, t.components, t.fix_version, t.parent_key, t.depends_on, t.custom_dependencies, t.source, t.client_visible,
+       t.estimate, t.story_points, t.sprint, t.labels, t.components, t.fix_version, t.parent_key, t.depends_on, t.custom_dependencies, t.source, t.client_visible, t.owner_team,
        t.created_at, t.updated_at, t.completed_at,
        coalesce((SELECT json_agg(json_build_object('type', l.type::text, 'key', l.target_key)) FROM task_links l WHERE l.task_id = t.id), '[]'::json),
        coalesce((SELECT json_agg(json_build_object('name', f.name, 'size', f.size)) FROM task_attachments f WHERE f.task_id = t.id), '[]'::json)`
@@ -81,7 +82,7 @@ func (s *server) queryTasks(ctx context.Context, sql string, args ...any) ([]tas
 		var links, atts []byte
 		if err := rows.Scan(&t.ID, &t.Key, &t.Project, &t.Type, &t.Summary, &t.Description, &t.Status, &t.Priority,
 			&t.Order, &t.Assignee, &t.Reporter, &t.StartDate, &t.DueDate, &t.Estimate, &t.StoryPoints, &t.Sprint,
-			&t.Labels, &t.Components, &t.FixVersion, &t.ParentKey, &t.DependsOn, &t.CustomDependencies, &t.Source, &t.ClientVisible, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt,
+			&t.Labels, &t.Components, &t.FixVersion, &t.ParentKey, &t.DependsOn, &t.CustomDependencies, &t.Source, &t.ClientVisible, &t.OwnerTeam, &t.CreatedAt, &t.UpdatedAt, &t.CompletedAt,
 			&links, &atts); err != nil {
 			return nil, err
 		}
@@ -148,12 +149,14 @@ type taskInput struct {
 	DependsOn          []string `json:"dependsOn"`
 	CustomDependencies []string `json:"customDependencies"`
 	ClientVisible      *bool    `json:"clientVisible"`
+	OwnerTeam          string   `json:"ownerTeam"`
 }
 
 var (
 	validProjects   = set("AML", "EKYC", "DPDP", "WEB")
 	validStatuses   = set("todo", "in_progress", "testing", "in_review", "done")
 	validPriorities = set("highest", "high", "medium", "low", "lowest")
+	validTeams      = set("nyneos", "bmc")
 	validTypes      = set("task", "bug", "story", "epic", "subtask")
 )
 
@@ -179,6 +182,13 @@ func (s *server) createTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Priority == "" {
 		in.Priority = "medium"
+	}
+	if in.OwnerTeam == "" {
+		in.OwnerTeam = "nyneos"
+	}
+	if !validTeams[in.OwnerTeam] {
+		writeErr(w, 400, "invalid owner team")
+		return
 	}
 	if !validProjects[in.Project] || !validStatuses[in.Status] || !validPriorities[in.Priority] || !validTypes[in.Type] {
 		writeErr(w, 400, "invalid project, type, status or priority")
@@ -213,16 +223,16 @@ WITH c AS (
   UPDATE projects SET task_counter = task_counter + 1 WHERE id = $1::project_id RETURNING task_counter
 ), n AS (
   INSERT INTO tasks (key, project, type, summary, description, status, priority, position, reporter_id, start_date, due_date,
-                     estimate, story_points, sprint, labels, components, fix_version, parent_key, depends_on, custom_dependencies, client_visible, completed_at)
+                     estimate, story_points, sprint, labels, components, fix_version, parent_key, depends_on, custom_dependencies, client_visible, owner_team, completed_at)
   SELECT $1 || '-' || c.task_counter, $1::project_id, $2::issue_type, $3, $4, $5::task_status, $6::task_priority,
          (SELECT count(*) FROM tasks WHERE status = $5::task_status), $7::uuid, $8::date, $9::date,
-         $10, $11, $12, $13::text[], $14::text[], $15, $16, $17::text[], $18::text[], $19, CASE WHEN $5 = 'done' THEN now() END
+         $10, $11, $12, $13::text[], $14::text[], $15, $16, $17::text[], $18::text[], $19::boolean, $20::text, CASE WHEN $5 = 'done' THEN now() END
   FROM c
   RETURNING *
 )`+taskSelect("n"),
 		in.Project, in.Type, strings.TrimSpace(in.Summary), in.Description, in.Status, in.Priority,
 		currentUser(r).ID, nullable(in.StartDate), nullable(in.DueDate), nullable(in.Estimate), in.StoryPoints, in.Sprint,
-		in.Labels, in.Components, in.FixVersion, nullable(in.ParentKey), in.DependsOn, in.CustomDependencies, visible)
+		in.Labels, in.Components, in.FixVersion, nullable(in.ParentKey), in.DependsOn, in.CustomDependencies, visible, in.OwnerTeam)
 	if err != nil || len(ts) == 0 {
 		msg := "could not create task"
 		if err != nil {
@@ -256,6 +266,7 @@ func (s *server) updateTask(w http.ResponseWriter, r *http.Request) {
 		DependsOn          *[]string `json:"dependsOn"`
 		CustomDependencies *[]string `json:"customDependencies"`
 		ClientVisible      *bool     `json:"clientVisible"`
+		OwnerTeam          *string   `json:"ownerTeam"`
 	}
 	if json.NewDecoder(r.Body).Decode(&in) != nil {
 		writeErr(w, 400, "invalid body")
@@ -308,6 +319,17 @@ func (s *server) updateTask(w http.ResponseWriter, r *http.Request) {
 	if (in.DependsOn != nil || in.CustomDependencies != nil) && currentUser(r).Role != "nyneos" {
 		writeErr(w, 403, "only NyneOS users can set dependencies")
 		return
+	}
+	if in.OwnerTeam != nil {
+		if !validTeams[*in.OwnerTeam] {
+			writeErr(w, 400, "invalid owner team")
+			return
+		}
+		if currentUser(r).Role != "nyneos" {
+			writeErr(w, 403, "only NyneOS users can change the task team")
+			return
+		}
+		add("owner_team", "", *in.OwnerTeam)
 	}
 	if in.ClientVisible != nil {
 		if currentUser(r).Role != "nyneos" {

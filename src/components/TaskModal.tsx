@@ -16,11 +16,12 @@ export const taskSchema=z.object({
   description:z.string(),
   status:z.enum(['todo','in_progress','testing','in_review','done']),
   priority:z.enum(['highest','high','medium','low','lowest']),
-  startDate:z.string(),
-  dueDate:z.string(),
+  startDate:z.string().min(1,'Start date is required'),
+  dueDate:z.string().min(1,'Due date is required'),
   dependsOn:z.array(z.string()),
   customDependencies:z.array(z.string()),
-  clientVisible:z.boolean()
+  clientVisible:z.boolean(),
+  ownerTeam:z.enum(['nyneos','bmc'])
 }).refine(value=>!value.startDate||!value.dueDate||value.dueDate>=value.startDate,{
   path:['dueDate'],
   message:'Due date must be on or after start date'
@@ -40,6 +41,10 @@ const statusOptions=[
   {value:'testing',label:'Testing/Review'},
   {value:'in_review',label:'Deploying'},
   {value:'done',label:'Completed'}
+];
+const teamOptions=[
+  {value:'nyneos',label:'NyneOS'},
+  {value:'bmc',label:'BMC'}
 ];
 const priorityOptions=[
   {value:'highest',label:'Highest'},
@@ -63,7 +68,7 @@ export default function TaskModal({
   const defaultProject:ProjectId=filterProject==='all'?'AML':filterProject;
   const{register,handleSubmit,watch,setValue,reset,formState:{errors}}=useForm<Values>({
     resolver:zodResolver(taskSchema),
-    defaultValues:{project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[],clientVisible:true}
+    defaultValues:{project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[],clientVisible:true,ownerTeam:'nyneos'}
   });
   const summary=watch('summary');
   const project=watch('project');
@@ -72,13 +77,14 @@ export default function TaskModal({
   const dependsOn=watch('dependsOn')??[];
   const customDependencies=watch('customDependencies')??[];
   const clientVisible=watch('clientVisible');
+  const ownerTeam=watch('ownerTeam');
   const isNyneos=useAuthStore(state=>state.user?.role==='nyneos');
   const allTasks=useTaskStore(state=>state.tasks);
   const projectTasks=allTasks.filter(t=>t.project===project);
 
   useEffect(()=>{
     if(open){
-      reset({project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[],clientVisible:true});
+      reset({project:defaultProject,summary:'',description:'',status,priority:'medium',startDate:date||'',dueDate:date||'',dependsOn:[],customDependencies:[],clientVisible:true,ownerTeam:'nyneos'});
       setTimeout(()=>document.getElementById('task-summary')?.focus(),0);
     }
   },[open,status,date,defaultProject,reset]);
@@ -130,10 +136,14 @@ export default function TaskModal({
             <ModernSelect ariaLabel="Priority" value={priority} options={priorityOptions} onChange={value=>setValue('priority',value as Priority,{shouldValidate:true})}/>
           </label>
 
-          <label>Start date<input type="date" {...register('startDate')}/></label>
-          <label>Due date<input type="date" {...register('dueDate')}/>{errors.dueDate&&<em>{errors.dueDate.message}</em>}</label>
+          <label>Start date <b>*</b><input type="date" {...register('startDate')}/>{errors.startDate&&<em>{errors.startDate.message}</em>}</label>
+          <label>Due date <b>*</b><input type="date" {...register('dueDate')}/>{errors.dueDate&&<em>{errors.dueDate.message}</em>}</label>
 
-          {isNyneos&&<div className="full visibilityField">Visibility
+          {isNyneos&&<label>Team
+            <ModernSelect ariaLabel="Team" value={ownerTeam} options={teamOptions} onChange={value=>setValue('ownerTeam',value as 'nyneos'|'bmc')}/>
+          </label>}
+
+          {isNyneos&&<div className="visibilityField">Visibility
             <VisibilityToggle visible={clientVisible} onChange={value=>setValue('clientVisible',value)}/>
           </div>}
 

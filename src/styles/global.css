@@ -1372,3 +1372,38 @@ button.group:hover>b{color:var(--accent)}
 .depNote{color:color-mix(in srgb,var(--danger) 60%,var(--surface))}
 
 .timelineRow > span.dependentName{background:color-mix(in srgb,var(--danger) 10%,var(--surface))}
+
+/* Task details popup: compact so it fits without an internal scrollbar */
+.taskPopup{max-height:none;overflow:visible;padding:22px 26px}
+.taskPopup .drawerTitle{font-size:24px!important;margin:12px 0 8px!important;padding:8px 16px}
+.taskPopup > textarea{min-height:72px;height:72px;resize:none}
+.taskPopup .detailGrid{margin-top:12px;gap:10px 16px}
+.taskPopup .visibilityField{margin-top:10px}
+.taskPopup .dependencyField{margin-top:10px}
+.taskPopup .dependencyPicker{gap:8px;margin-top:6px}
+.taskPopup .taskPopupFooter{margin-top:12px}
+.taskPopup .shiftTimeline{flex-direction:row;align-items:flex-end;gap:12px}
+.taskPopup .shiftTimeline .shiftInput{display:flex;flex-direction:column;gap:4px}
+.taskPopup .shiftButtons{display:flex;gap:8px}
+@media(max-height:760px){.taskPopup{top:12px;transform:translateX(-50%);max-height:calc(100vh - 24px);overflow:auto}}
+.taskPopup > textarea{field-sizing:content;height:auto;min-height:72px;max-height:none;overflow:hidden}
+.taskPopup .teamField{display:block;margin-top:10px;font-size:12px;font-weight:600}
+.taskPopup .teamField .modernSelect{margin-top:6px}
+.taskPopup .teamField .modernSelectTrigger{height:var(--control-height);min-height:var(--control-height);border-radius:var(--button-radius);background:var(--surface-2)}
+.taskPopup .teamVisRow{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media(max-width:700px){.taskPopup .teamVisRow{grid-template-columns:1fr}}
+
+.timelineRow > span.bmcName{background:color-mix(in srgb,var(--success,#16a34a) 12%,var(--surface))}
+.bmcNote{display:block;margin-top:-4px;font-size:10px;line-height:1.2;font-weight:600;color:color-mix(in srgb,var(--success,#16a34a) 75%,var(--text))}
+
+.timelineHeader .dayHead{cursor:pointer;border-radius:8px;transition:background .15s}
+.timelineHeader .dayHead:hover{background:var(--surface-2);color:var(--text)}
+
+.depLegend>span{display:inline-flex;align-items:center}
+.depLegend .swatch{padding:0;border-radius:0;background:none;margin-top:0}
+.depLegend .swatch.ok{border-top:2px solid var(--danger);background:none}
+.depLegend .swatch.bmc{width:22px;height:12px;border:1px solid var(--success,#16a34a);border-radius:4px;background:color-mix(in srgb,var(--success,#16a34a) 24%,var(--surface))}
+
+.depLegend{gap:10px 36px}
+.depLegend>span{gap:10px}
+.depLegend .swatch,.depLegend .swatch.late,.depLegend .swatch.ok,.depLegend .swatch.bmc{margin:0;flex:none}
