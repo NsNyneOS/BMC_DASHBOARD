@@ -1505,3 +1505,20 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .popupHeadActions{display:flex;align-items:center;gap:10px}
 .icon.dangerIcon{border-color:color-mix(in srgb,var(--danger) 40%,var(--border));color:var(--danger)}
 .icon.dangerIcon:hover{background:color-mix(in srgb,var(--danger) 12%,var(--surface))}
+
+/* Phone layout: no sticky header, stacked board, fitted month/week views */
+@media(max-width:700px){
+  .topbar{position:relative}
+  .board{grid-template-columns:1fr;overflow:visible;scroll-snap-type:none;gap:12px}
+  .column{min-height:0;scroll-snap-align:none}
+  .columnList{min-height:56px}
+  .month{min-width:0;grid-template-columns:repeat(7,minmax(0,1fr))}
+  .month>b{padding:8px 2px;font-size:11px;text-align:center}
+  .day{min-height:62px;padding:5px 3px;text-align:center;font-size:12px;overflow:hidden}
+  .day i{display:inline-block;width:7px;height:7px;padding:0;margin:3px 1px 0;border-radius:50%;font-size:0;vertical-align:top}
+  .day small{display:block;font-size:9px}
+  .week{min-width:0;grid-template-columns:1fr}
+  .week>div{min-height:0;border-right:0;border-bottom:1px solid var(--border);padding:10px 12px}
+  .week h4{margin-bottom:6px}
+  .timeline{width:max-content!important;min-width:0}
+}
