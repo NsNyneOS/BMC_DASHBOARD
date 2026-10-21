@@ -232,7 +232,16 @@ type SummaryAlert = {
   taskKeys: string[];
 };
 type SummaryView = { project: ProjectId; view: "activities" | "alerts" } | null;
-function buildSummary(tasks: Task[], meta: ProjectMeta[]) {
+function buildSummary(tasks: Task[], meta: ProjectMeta[], clientView = false) {
+  if (clientView) {
+    // BMC users never see tasks marked NOT VISIBLE, nor alerts that point at them.
+    tasks = tasks.filter((t) => t.clientVisible !== false);
+    const keys = new Set(tasks.map((t) => t.key));
+    meta = meta.map((m) => ({
+      ...m,
+      alerts: m.alerts.filter((a) => !a.taskKey || keys.has(a.taskKey)),
+    }));
+  }
   return projects.map((p) => {
     const list = tasks.filter((t) => t.project === p),
       done = list.filter((t) => t.status === "done").length,
@@ -285,7 +294,11 @@ function ProjectSummary() {
     [draft, setDraft] = useState({ start: "", end: "" }),
     [saving, setSaving] = useState(false),
     [dateError, setDateError] = useState(""),
-    rows = useMemo(() => buildSummary(tasks, meta), [tasks, meta]),
+    clientView = useAuthStore((s) => s.user?.role === "bmc"),
+    rows = useMemo(
+      () => buildSummary(tasks, meta, clientView),
+      [tasks, meta, clientView],
+    ),
     current = open ? rows.find((r) => r.project === open.project) : null,
     openTask = (key: string) => {
       const t = tasks.find((x) => x.key === key);
