@@ -1378,19 +1378,8 @@ function TaskDetailsModal() {
     readOnly = useAuthStore((s) => s.user?.role !== "nyneos"),
     [pendingStatus, setPendingStatus] = useState<Status | null>(null),
     [confirmDelete, setConfirmDelete] = useState(false),
-    [shiftDays, setShiftDays] = useState("1"),
     allTasks = useTaskStore((s) => s.tasks);
   if (!id || !task) return null;
-  const shiftDates = (sign: 1 | -1) => {
-    const n = parseInt(shiftDays, 10);
-    if (!n || (!task.startDate && !task.dueDate)) return;
-    const move = (d: string | null) =>
-      d ? format(addDays(parseISO(d), sign * Math.abs(n)), "yyyy-MM-dd") : d;
-    update(task.id, {
-      startDate: move(task.startDate),
-      dueDate: move(task.dueDate),
-    });
-  };
   return (
     <>
       <button
@@ -1409,9 +1398,25 @@ function TaskDetailsModal() {
             <i style={{ background: color(task.project) }} />
             {task.key} · {task.type}
           </span>
-          <button className="icon" onClick={() => select(null)}>
-            <X />
-          </button>
+          <div className="popupHeadActions">
+            {!readOnly && (
+              <button
+                className="icon dangerIcon"
+                onClick={() => setConfirmDelete(true)}
+                aria-label="Delete task"
+                title="Delete task"
+              >
+                <Trash2 />
+              </button>
+            )}
+            <button
+              className="icon"
+              onClick={() => select(null)}
+              aria-label="Close task details"
+            >
+              <X />
+            </button>
+          </div>
         </div>
         <input
           className="drawerTitle"
@@ -1466,25 +1471,37 @@ function TaskDetailsModal() {
             <input
               type="date"
               value={task.startDate || ""}
-              max={task.dueDate || undefined}
               readOnly={readOnly}
               disabled={readOnly}
-              onChange={(event) =>
-                update(task.id, { startDate: event.target.value })
-              }
+              onChange={(event) => {
+                const v = event.target.value;
+                // Any date is allowed; if it passes the due date, the due date moves with it.
+                update(
+                  task.id,
+                  v && task.dueDate && v > task.dueDate
+                    ? { startDate: v, dueDate: v }
+                    : { startDate: v },
+                );
+              }}
             />
           </label>
           <label>
             Due date
             <input
               type="date"
-              min={task.startDate || undefined}
               value={task.dueDate || ""}
               readOnly={readOnly}
               disabled={readOnly}
-              onChange={(event) =>
-                update(task.id, { dueDate: event.target.value })
-              }
+              onChange={(event) => {
+                const v = event.target.value;
+                // Any date is allowed; if it is before the start date, the start date moves with it.
+                update(
+                  task.id,
+                  v && task.startDate && v < task.startDate
+                    ? { dueDate: v, startDate: v }
+                    : { dueDate: v },
+                );
+              }}
             />
           </label>
         </div>
@@ -1532,36 +1549,6 @@ function TaskDetailsModal() {
             }
           />
         </div>
-        {!readOnly && (
-          <div className="taskPopupFooter">
-            <div className="shiftTimeline">
-              <label className="shiftInput">
-                Shift dates by (days)
-                <input
-                  type="number"
-                  min={1}
-                  value={shiftDays}
-                  aria-label="Days to shift"
-                  onChange={(event) => setShiftDays(event.target.value)}
-                />
-              </label>
-              <div className="shiftButtons">
-                <button type="button" className="pill" onClick={() => shiftDates(-1)}>
-                  Pull back
-                </button>
-                <button type="button" className="primary" onClick={() => shiftDates(1)}>
-                  Push
-                </button>
-              </div>
-            </div>
-            <button
-              className="danger"
-              onClick={() => setConfirmDelete(true)}
-            >
-              <Trash2 /> Delete task
-            </button>
-          </div>
-        )}
       </div>
       <ConfirmDialog
         open={confirmDelete}

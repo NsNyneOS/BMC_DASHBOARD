@@ -50,7 +50,7 @@ export default function ModernSelect({
       setPos({left:r.left,top:up?r.top-8:r.bottom+8,width:r.width,maxHeight:Math.max(120,Math.min(260,up?above:below)),up});
     };
     place();
-    const onScroll=(e:Event)=>{if(!menu.current?.contains(e.target as Node))setOpen(false)};
+    const onScroll=(e:Event)=>{if(!menu.current?.contains(e.target as Node))place()};
     window.addEventListener('resize',place);
     window.addEventListener('scroll',onScroll,true);
     return()=>{window.removeEventListener('resize',place);window.removeEventListener('scroll',onScroll,true)};
@@ -109,7 +109,7 @@ export default function ModernSelect({
       <span>{selected?.label}</span>
       <ChevronDown/>
     </button>
-    {open&&!disabled&&pos&&createPortal(<div ref={menu} className="modernSelectMenu" style={{position:'fixed',zIndex:2000,left:pos.left,width:pos.width,maxHeight:pos.maxHeight,top:pos.up?undefined:pos.top,bottom:pos.up?window.innerHeight-pos.top:undefined}} id={listId} role="listbox" aria-label={ariaLabel}>
+    {open&&!disabled&&pos&&createPortal(<div ref={menu} className="modernSelectMenu" style={{position:'fixed',zIndex:2000,left:pos.left,width:pos.width,maxHeight:pos.maxHeight,top:pos.up?'auto':pos.top,bottom:pos.up?window.innerHeight-pos.top:'auto'}} id={listId} role="listbox" aria-label={ariaLabel}>
       {searchable&&<div className="modernSelectSearch">
         <Search/>
         <input
