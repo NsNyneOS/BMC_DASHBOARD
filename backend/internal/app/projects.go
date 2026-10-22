@@ -28,7 +28,8 @@ func (s *server) listProjects(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.db.Query(ctx, `
 		SELECT id::text, name, to_char(start_date, 'YYYY-MM-DD'), to_char(end_date, 'YYYY-MM-DD')
 		FROM projects
-		ORDER BY array_position(ARRAY['AML','EKYC','DPDP','WEB'], id::text)`)
+		WHERE NOT nyneos_only OR $1
+		ORDER BY array_position(ARRAY['AML','EKYC','DPDP','WEB','CRM'], id::text)`, currentUser(r).Role == "nyneos")
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -50,7 +51,7 @@ func (s *server) listProjects(w http.ResponseWriter, r *http.Request) {
 	ar, err := s.db.Query(ctx, `
 		SELECT a.id::text, a.project::text, a.message, a.severity, t.key
 		FROM project_alerts a LEFT JOIN tasks t ON t.id = a.task_id
-		WHERE NOT a.resolved AND (t.id IS NULL OR t.client_visible OR $1) ORDER BY a.created_at DESC`, currentUser(r).Role == "nyneos")
+		WHERE NOT a.resolved AND ($1 OR a.project::text <> 'CRM') AND (t.id IS NULL OR t.client_visible OR $1) ORDER BY a.created_at DESC`, currentUser(r).Role == "nyneos")
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -71,6 +72,10 @@ func (s *server) listProjects(w http.ResponseWriter, r *http.Request) {
 // updateProject sets the explicit date range shown on a project's summary bar.
 // An empty string clears a date so the UI falls back to task-derived dates.
 func (s *server) updateProject(w http.ResponseWriter, r *http.Request) {
+	if r.PathValue("id") == "CRM" && currentUser(r).Role != "nyneos" {
+		writeErr(w, 403, "only NyneOS users can edit the CRM project")
+		return
+	}
 	var in struct {
 		StartDate string `json:"startDate"`
 		EndDate   string `json:"endDate"`

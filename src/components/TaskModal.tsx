@@ -11,7 +11,7 @@ import DependencyPicker from'./DependencyPicker';
 import VisibilityToggle from'./VisibilityToggle';
 
 export const taskSchema=z.object({
-  project:z.enum(['AML','EKYC','DPDP','WEB']),
+  project:z.enum(['AML','EKYC','DPDP','WEB','CRM']),
   summary:z.string().min(1,'Summary is required').max(120),
   description:z.string(),
   status:z.enum(['todo','in_progress','testing','in_review','done']),
@@ -33,7 +33,8 @@ const projectOptions=[
   {value:'AML',label:'AML'},
   {value:'EKYC',label:'EKYC'},
   {value:'DPDP',label:'DPDP'},
-  {value:'WEB',label:'Website'}
+  {value:'WEB',label:'Website'},
+  {value:'CRM',label:'CRM'}
 ];
 const statusOptions=[
   {value:'todo',label:'New'},
@@ -114,7 +115,7 @@ export default function TaskModal({
       <form onSubmit={handleSubmit(submit)}>
         <div className="formGrid">
           <label>Project <b>*</b>
-            <ModernSelect ariaLabel="Project" value={project} options={projectOptions} onChange={value=>{setValue('project',value as ProjectId,{shouldValidate:true});setValue('dependsOn',[])}}/>
+            <ModernSelect ariaLabel="Project" value={project} options={isNyneos?projectOptions:projectOptions.filter(o=>o.value!=='CRM')} onChange={value=>{setValue('project',value as ProjectId,{shouldValidate:true});setValue('dependsOn',[])}}/>
           </label>
 
           <label className="full">

@@ -113,7 +113,7 @@ func (s *server) listTasks(w http.ResponseWriter, r *http.Request) {
 	// Tasks marked NOT VISIBLE are only returned to NyneOS users.
 	where := ""
 	if currentUser(r).Role != "nyneos" {
-		where = " WHERE t.client_visible"
+		where = " WHERE t.client_visible AND t.project::text <> 'CRM'"
 	}
 	ts, err := s.queryTasks(r.Context(), taskSelect("tasks")+where+" ORDER BY t.project, t.position, t.created_at")
 	if err != nil {
@@ -153,7 +153,7 @@ type taskInput struct {
 }
 
 var (
-	validProjects   = set("AML", "EKYC", "DPDP", "WEB")
+	validProjects   = set("AML", "EKYC", "DPDP", "WEB", "CRM")
 	validStatuses   = set("todo", "in_progress", "testing", "in_review", "done")
 	validPriorities = set("highest", "high", "medium", "low", "lowest")
 	validTeams      = set("nyneos", "bmc")
@@ -192,6 +192,10 @@ func (s *server) createTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if !validProjects[in.Project] || !validStatuses[in.Status] || !validPriorities[in.Priority] || !validTypes[in.Type] {
 		writeErr(w, 400, "invalid project, type, status or priority")
+		return
+	}
+	if in.Project == "CRM" && currentUser(r).Role != "nyneos" {
+		writeErr(w, 403, "only NyneOS users can use the CRM project")
 		return
 	}
 	if in.Labels == nil {

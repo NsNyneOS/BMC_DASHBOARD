@@ -62,7 +62,8 @@ import ModernSelect from "./components/ModernSelect";
 import ConfirmDialog from "./components/ConfirmDialog";
 import bombayMercantileLogo from "../assets/bombay_mercantile_bank_logo.png";
 import nyneosLogo from "../assets/nyneos_logo.png";
-const projects: ProjectId[] = ["AML", "EKYC", "DPDP", "WEB"],
+const clientProjects: ProjectId[] = ["AML", "EKYC", "DPDP", "WEB"],
+  allProjects: ProjectId[] = [...clientProjects, "CRM"],
   statuses: Status[] = ["todo", "in_progress", "testing", "in_review", "done"];
 const statusName: Record<Status, string> = {
   todo: "New",
@@ -71,6 +72,9 @@ const statusName: Record<Status, string> = {
   in_review: "Deploying",
   done: "Completed",
 };
+// CRM is internal: BMC logins never see it.
+const useProjects = () =>
+  useAuthStore((s) => (s.user?.role === "bmc" ? clientProjects : allProjects));
 const projectName = (p: ProjectId) => (p === "WEB" ? "Website" : p);
 const color = (p: ProjectId) => `var(--${p.toLowerCase()})`;
 const due = (x: string | null) =>
@@ -232,7 +236,12 @@ type SummaryAlert = {
   taskKeys: string[];
 };
 type SummaryView = { project: ProjectId; view: "activities" | "alerts" } | null;
-function buildSummary(tasks: Task[], meta: ProjectMeta[], clientView = false) {
+function buildSummary(
+  tasks: Task[],
+  meta: ProjectMeta[],
+  projects: ProjectId[],
+  clientView = false,
+) {
   if (clientView) {
     // BMC users never see tasks marked NOT VISIBLE, nor alerts that point at them.
     tasks = tasks.filter((t) => t.clientVisible !== false);
@@ -294,10 +303,11 @@ function ProjectSummary() {
     [draft, setDraft] = useState({ start: "", end: "" }),
     [saving, setSaving] = useState(false),
     [dateError, setDateError] = useState(""),
+    projects = useProjects(),
     clientView = useAuthStore((s) => s.user?.role === "bmc"),
     rows = useMemo(
-      () => buildSummary(tasks, meta, clientView),
-      [tasks, meta, clientView],
+      () => buildSummary(tasks, meta, projects, clientView),
+      [tasks, meta, projects, clientView],
     ),
     current = open ? rows.find((r) => r.project === open.project) : null,
     openTask = (key: string) => {
@@ -569,6 +579,7 @@ function Overview({ tasks }: { tasks: Task[] }) {
 function Trend({ tasks }: { tasks: Task[] }) { const data = useMemo(() => Array.from({ length: 6 }, (_, i) => { const d = addMonths(new Date(2026, 8, 1), i); return { label: format(d, 'MMM'), created: tasks.filter(t => format(t.startDate ? parseISO(t.startDate) : new Date(t.createdAt), 'yyyy-MM') === format(d, 'yyyy-MM')).length, done: tasks.filter(t => t.completedAt && format(new Date(t.completedAt), 'yyyy-MM') === format(d, 'yyyy-MM')).length } }), [tasks]); const max = Math.max(1, ...data.flatMap(x => [x.created, x.done])), pts = (k: 'created' | 'done') => data.map((x, i) => `${24 + i * 66},${184 - x[k] / max * 140}`).join(' '); return <section className="card"><div className="cardHead"><div><h2>Created vs Completed</h2></div></div><svg className="trend" viewBox="0 0 380 220">{[44, 79, 114, 149, 184].map(y => <line key={y} x1="24" x2="360" y1={y} y2={y} />)}<polyline className="createdLine" points={pts('created')} /><polyline className="doneLine" points={pts('done')} />{data.map((x, i) => <g key={x.label}><circle cx={24 + i * 66} cy={184 - x.created / max * 140} r="4" /><text x={24 + i * 66} y="210">{x.label}</text><title>{x.label}: {x.created} created, {x.done} completed</title></g>)}</svg><div className="chartLegend"><span><i className="orange" />Created</span><span><i className="green" />Completed</span></div></section> }
 */
 function Progress({ tasks }: { tasks: Task[] }) {
+  const projects = useProjects();
   return (
     <section className="card progress" id="reports">
       <div className="cardHead">
@@ -698,6 +709,7 @@ function SortCard({
   );
 }
 function Board({ create }: { create: (s: Status) => void }) {
+  const projects = useProjects();
   const tasks = useTaskStore(useShallow(selectFiltered)),
     move = useTaskStore((s) => s.moveTask),
     remove = useTaskStore((s) => s.deleteTask),
@@ -881,6 +893,7 @@ function Calendar({
   create: (s: Status, d?: string) => void;
   viewOnly?: boolean;
 }) {
+  const projects = useProjects();
   const tasks = useTaskStore(useShallow(selectFiltered)),
     select = useTaskStore((s) => s.selectTask),
     [view, setView] = useState<"timeline" | "month" | "week">("timeline"),
@@ -1606,6 +1619,7 @@ function TaskDetailsModal() {
   );
 }
 function Dashboard() {
+  const projects = useProjects();
   const canBoard = useAuthStore((s) => !!s.user?.canManageBoard),
     viewOnly = useAuthStore((s) => s.user?.role === "bmc"),
     tasks = useTaskStore(useShallow(selectFiltered)),
