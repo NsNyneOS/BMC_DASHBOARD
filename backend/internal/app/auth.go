@@ -63,6 +63,11 @@ func (s *server) auth(next http.HandlerFunc) http.HandlerFunc {
 			writeErr(w, http.StatusUnauthorized, "unauthorized")
 			return
 		}
+		// A user still on the default password may only read their profile and change the password.
+		if u.MustChangePassword && r.URL.Path != "/api/auth/me" && r.URL.Path != "/api/auth/change-password" {
+			writeErr(w, http.StatusForbidden, "password change required")
+			return
+		}
 		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
 	}
 }
@@ -98,3 +103,10 @@ func (s *server) cachedUser(ctx context.Context, id string) (*user, error) {
 }
 
 func currentUser(r *http.Request) *user { return r.Context().Value(ctxKey{}).(*user) }
+
+// clearUserCache forgets every cached user, so role / customer changes apply on the next request.
+func clearUserCache() {
+	userCacheMu.Lock()
+	userCache = map[string]cachedEntry{}
+	userCacheMu.Unlock()
+}
