@@ -1,7 +1,6 @@
 import{useState,type FormEvent}from'react';
 import{Eye,EyeOff}from'lucide-react';
 import{useAuthStore}from'../store/useAuthStore';
-import bombayMercantileLogo from'../../assets/bombay_mercantile_bank_logo.png';
 import nyneosLogo from'../../assets/nyneos_logo.png';
 
 export default function Login(){
@@ -11,7 +10,7 @@ export default function Login(){
   return <div className="loginPage">
     <div className="accentStrip"/>
     <form className="card loginCard" onSubmit={submit}>
-      <div className="logos"><span><img src={bombayMercantileLogo} alt="Bombay Mercantile Co-operative Bank"/></span><i/><span className="nyneos"><img src={nyneosLogo} alt="NyneOS Technologies"/></span></div>
+      <div className="logos"><span className="nyneos"><img src={nyneosLogo} alt="NyneOS Technologies"/></span></div>
       <h1>Project Dashboard</h1>
       <p className="eyebrow">Sign in to continue</p>
       <label>Username<input autoFocus autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)}/></label>

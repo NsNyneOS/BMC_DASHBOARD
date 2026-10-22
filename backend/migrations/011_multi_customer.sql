@@ -147,7 +147,7 @@ INSERT INTO uam_permissions (code, module, name) VALUES
   ('task.delete',             'Tasks',     'Delete tasks'),
   ('task.dependencies.edit',  'Tasks',     'Edit task dependencies'),
   ('task.visibility.manage',  'Tasks',     'Mark tasks visible / not visible to the customer'),
-  ('task.team.manage',        'Tasks',     'Change a task''s owner team'),
+  ('task.team.manage',        'Tasks',     'Change a task''s team'),
   ('project.manage',          'Projects',  'Create / edit projects and their dates'),
   ('project.internal.view',   'Projects',  'See internal-only projects'),
   ('customer.view',           'Customers', 'View customers'),

@@ -131,7 +131,12 @@ func (s *server) queryTasks(ctx context.Context, sql string, args ...any) ([]tas
 func (s *server) listTasks(w http.ResponseWriter, r *http.Request) {
 	// Scope: external users get only their customer's visible tasks; internal users may narrow with ?customer=CODE.
 	u := currentUser(r)
-	where, args := taskScope(u, r.URL.Query().Get("customer"), 0)
+	q := r.URL.Query()
+	if (q.Get("assignee") == "me" || q.Get("reviewer") == "me") && u.internal() && !u.can("mytasks.view") {
+		writeErr(w, 403, "you do not have access to My Tasks")
+		return
+	}
+	where, args := taskScope(u, q.Get("customer"), 0)
 	if r.URL.Query().Get("assignee") == "me" { // "My Tasks": only what is assigned to the signed-in user
 		args = append(args, u.ID)
 		where += " AND EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = $" + itoa(len(args)) + "::uuid)"

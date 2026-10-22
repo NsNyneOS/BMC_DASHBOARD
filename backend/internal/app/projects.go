@@ -315,6 +315,14 @@ func projectCodeBase(name string) string {
 // uniqueProjectCode returns projectCodeBase(name), with a number appended when it is taken (LO2, LO3 ...), so every
 // project code is unique.
 func (s *server) uniqueProjectCode(ctx context.Context, name string) (string, error) {
+	return s.uniqueCode(ctx, "project_master", name)
+}
+
+// uniqueCode is the generator behind project and customer codes: table is one of the two fixed code-bearing tables.
+func (s *server) uniqueCode(ctx context.Context, table, name string) (string, error) {
+	if table != "project_master" && table != "customer_master" {
+		return "", errors.New("unsupported table")
+	}
 	base := projectCodeBase(name)
 	for n := 1; n < 1000; n++ {
 		code := base
@@ -327,12 +335,12 @@ func (s *server) uniqueProjectCode(ctx context.Context, name string) (string, er
 			}
 		}
 		var taken bool
-		if err := s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM project_master WHERE code = $1)`, code).Scan(&taken); err != nil {
+		if err := s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM `+table+` WHERE code = $1)`, code).Scan(&taken); err != nil {
 			return "", err
 		}
 		if !taken {
 			return code, nil
 		}
 	}
-	return "", errors.New("could not generate a project code")
+	return "", errors.New("could not generate a code")
 }

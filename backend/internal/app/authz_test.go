@@ -75,6 +75,7 @@ func TestExternalPermissionsAreRestricted(t *testing.T) {
 	}
 }
 
+// Customer codes use the same generator (initials of the name, numbered when taken).
 func TestProjectCodeBase(t *testing.T) {
 	cases := map[string]string{
 		"Loan Origination":    "LO",

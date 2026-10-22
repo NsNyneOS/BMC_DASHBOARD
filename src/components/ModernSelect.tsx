@@ -79,7 +79,8 @@ export default function ModernSelect({
 
   const handleKey=(event:React.KeyboardEvent<HTMLElement>)=>{
     if(disabled)return;
-    if(event.key==='Escape'){setOpen(false);return}
+    // Escape closes just this menu; don't let it also close a dialog the select sits in.
+    if(event.key==='Escape'){if(open)event.stopPropagation();setOpen(false);return}
     if(event.key==='ArrowDown'||event.key==='ArrowUp'){
       event.preventDefault();
       if(!open){setOpen(true);return}

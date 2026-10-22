@@ -2,9 +2,13 @@ import{create}from'zustand';
 import{api,setToken,getToken,type AuthUser}from'../api/client';
 import{useTaskStore}from'./useTaskStore';
 
-interface AuthState{user:AuthUser|null;checking:boolean;error:string;busy:boolean;login:(username:string,password:string)=>Promise<void>;logout:()=>void;restore:()=>Promise<void>}
+interface AuthState{user:AuthUser|null;checking:boolean;error:string;busy:boolean;login:(username:string,password:string)=>Promise<void>;logout:()=>void;restore:()=>Promise<void>;passwordChanged:()=>void}
+
+export const useCan=(permission:string)=>useAuthStore(s=>!!s.user?.permissions.includes(permission));
+export const useIsInternal=()=>useAuthStore(s=>s.user?.userType==='internal');
 
 export const useAuthStore=create<AuthState>((set)=>({
+  passwordChanged:()=>set(s=>({user:s.user?{...s.user,mustChangePassword:false}:s.user})),
   user:null,checking:true,error:'',busy:false,
   login:async(username,password)=>{
     set({busy:true,error:''});

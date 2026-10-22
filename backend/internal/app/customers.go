@@ -13,7 +13,6 @@ type customerOut struct {
 	ShortName    string    `json:"shortName"`
 	Type         string    `json:"type"`
 	LogoURL      string    `json:"logoUrl"`
-	Website      string    `json:"website"`
 	ContactName  string    `json:"contactName"`
 	ContactEmail string    `json:"contactEmail"`
 	ContactPhone string    `json:"contactPhone"`
@@ -25,7 +24,7 @@ type customerOut struct {
 }
 
 const customerCols = `SELECT c.id::text, c.code, c.name, coalesce(c.short_name,''), c.customer_type, coalesce(c.logo_url,''),
-       coalesce(c.website,''), coalesce(c.contact_name,''), coalesce(c.contact_email,''), coalesce(c.contact_phone,''),
+       coalesce(c.contact_name,''), coalesce(c.contact_email,''), coalesce(c.contact_phone,''),
        coalesce(c.address,''), c.status, c.created_at,
        (SELECT count(*) FROM project_master pm WHERE pm.customer_id = c.id),
        (SELECT count(*) FROM user_data u WHERE u.customer_id = c.id)
@@ -33,7 +32,7 @@ FROM customer_master c`
 
 func scanCustomer(row interface{ Scan(...any) error }) (customerOut, error) {
 	var c customerOut
-	err := row.Scan(&c.ID, &c.Code, &c.Name, &c.ShortName, &c.Type, &c.LogoURL, &c.Website, &c.ContactName,
+	err := row.Scan(&c.ID, &c.Code, &c.Name, &c.ShortName, &c.Type, &c.LogoURL, &c.ContactName,
 		&c.ContactEmail, &c.ContactPhone, &c.Address, &c.Status, &c.CreatedAt, &c.ProjectCount, &c.UserCount)
 	return c, err
 }
@@ -64,7 +63,6 @@ type customerInput struct {
 	Name         *string `json:"name"`
 	ShortName    *string `json:"shortName"`
 	LogoURL      *string `json:"logoUrl"`
-	Website      *string `json:"website"`
 	ContactName  *string `json:"contactName"`
 	ContactEmail *string `json:"contactEmail"`
 	ContactPhone *string `json:"contactPhone"`
@@ -74,15 +72,25 @@ type customerInput struct {
 
 func (s *server) createCustomer(w http.ResponseWriter, r *http.Request) {
 	var in customerInput
-	if !readJSON(r, &in) || in.Code == nil || in.Name == nil {
-		writeErr(w, 400, "code and name are required")
+	if !readJSON(r, &in) || in.Name == nil || strings.TrimSpace(*in.Name) == "" {
+		writeErr(w, 400, "name is required")
 		return
 	}
-	code := strings.ToUpper(strings.TrimSpace(*in.Code))
 	name := strings.TrimSpace(*in.Name)
-	if !codeRe.MatchString(code) || name == "" {
-		writeErr(w, 400, "code must be 2-10 characters: A-Z and 0-9, starting with a letter; name is required")
+	code := ""
+	if in.Code != nil {
+		code = strings.ToUpper(strings.TrimSpace(*in.Code))
+	}
+	if code != "" && !codeRe.MatchString(code) {
+		writeErr(w, 400, "code must be 2-10 characters: A-Z and 0-9, starting with a letter")
 		return
+	}
+	if code == "" { // no code given: generate a unique one from the name (initials, numbered if taken)
+		var err error
+		if code, err = s.uniqueCode(r.Context(), "customer_master", name); err != nil {
+			writeErr(w, 500, err.Error())
+			return
+		}
 	}
 	val := func(p *string) string {
 		if p == nil {
@@ -92,9 +100,9 @@ func (s *server) createCustomer(w http.ResponseWriter, r *http.Request) {
 	}
 	var id string
 	err := s.db.QueryRow(r.Context(), `
-		INSERT INTO customer_master (code, name, short_name, customer_type, logo_url, website, contact_name, contact_email, contact_phone, address)
-		VALUES ($1, $2, NULLIF($3,''), 'client', NULLIF($4,''), NULLIF($5,''), NULLIF($6,''), NULLIF($7,''), NULLIF($8,''), NULLIF($9,''))
-		RETURNING id::text`, code, name, val(in.ShortName), val(in.LogoURL), val(in.Website), val(in.ContactName),
+		INSERT INTO customer_master (code, name, short_name, customer_type, logo_url, contact_name, contact_email, contact_phone, address)
+		VALUES ($1, $2, NULLIF($3,''), 'client', NULLIF($4,''), NULLIF($5,''), NULLIF($6,''), NULLIF($7,''), NULLIF($8,''))
+		RETURNING id::text`, code, name, val(in.ShortName), val(in.LogoURL), val(in.ContactName),
 		val(in.ContactEmail), val(in.ContactPhone), val(in.Address)).Scan(&id)
 	if err != nil {
 		if strings.Contains(err.Error(), "23505") || strings.Contains(err.Error(), "duplicate") {
@@ -147,7 +155,6 @@ func (s *server) updateCustomer(w http.ResponseWriter, r *http.Request) {
 	add("name", in.Name, false)
 	add("short_name", in.ShortName, true)
 	add("logo_url", in.LogoURL, true)
-	add("website", in.Website, true)
 	add("contact_name", in.ContactName, true)
 	add("contact_email", in.ContactEmail, true)
 	add("contact_phone", in.ContactPhone, true)

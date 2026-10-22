@@ -39,6 +39,7 @@ import {
   Clock3,
   Filter,
   Menu as MenuIcon,
+  Settings,
   Monitor,
   Moon,
   Palette,
@@ -50,21 +51,32 @@ import {
   X,
 } from "lucide-react";
 import { useTaskStore } from "./store/useTaskStore";
-import { useAuthStore } from "./store/useAuthStore";
+import { useAuthStore, useCan } from "./store/useAuthStore";
+import { useBrand, useClientLabel, useProjectCustomer, useViewingLabel } from "./store/useBrand";
+import { api, type Assignee } from "./api/client";
+import { projectName, projectColor as color } from "./utils/projects";
+import { usePage, type Page } from "./utils/route";
+import Sidebar, { allowedPages } from "./components/Sidebar";
+import MyTasksPage from "./pages/MyTasksPage";
+import CustomersPage from "./pages/CustomersPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import UsersPage from "./pages/UsersPage";
+import RolesPage from "./pages/RolesPage";
 import type { ProjectMeta } from "./api/client";
 import Login from "./components/Login";
+import ChangePassword from "./components/ChangePassword";
+import Loader from "./components/Loader";
 import { selectFiltered } from "./store/selectors";
 import { useTheme, type Mode, type Theme } from "./theme/ThemeProvider";
 import { monthGrid, toISO } from "./utils/date";
 import type { ProjectId, Status, Task } from "./types/task";
 import TaskModal from "./components/TaskModal";
 import ModernSelect from "./components/ModernSelect";
+import MultiSelect from "./components/MultiSelect";
 import ConfirmDialog from "./components/ConfirmDialog";
 import bombayMercantileLogo from "../assets/bombay_mercantile_bank_logo.png";
 import nyneosLogo from "../assets/nyneos_logo.png";
-const clientProjects: ProjectId[] = ["AML", "EKYC", "DPDP", "WEB"],
-  allProjects: ProjectId[] = [...clientProjects, "CRM"],
-  statuses: Status[] = ["todo", "in_progress", "testing", "in_review", "done"];
+const statuses: Status[] = ["todo", "in_progress", "testing", "in_review", "done"];
 const statusName: Record<Status, string> = {
   todo: "New",
   in_progress: "In Progress",
@@ -72,27 +84,42 @@ const statusName: Record<Status, string> = {
   in_review: "Deploying",
   done: "Completed",
 };
-// CRM is internal: BMC logins never see it.
+// Projects come from the API (project_master), already limited to what this user may see.
 const useProjects = () =>
-  useAuthStore((s) => (s.user?.role === "bmc" ? clientProjects : allProjects));
-const projectName = (p: ProjectId) => (p === "WEB" ? "Website" : p);
-const color = (p: ProjectId) => `var(--${p.toLowerCase()})`;
+  useTaskStore(
+    useShallow((s) =>
+      s.projects.filter((p) => p.status !== "archived").map((p) => p.id),
+    ),
+  );
+// The projects to display: all of them, or only the one picked in the project filter chips.
+const useVisibleProjects = () => {
+  const all = useProjects(),
+    picked = useTaskStore((s) => s.filters.project);
+  return useMemo(() => (picked === "all" ? all : all.filter((p) => p === picked)), [all, picked]);
+};
 const due = (x: string | null) =>
   x ? format(new Date(`${x}T12:00:00`), "MMM d") : "No date";
+// Customer-side tasks are drawn in green in every calendar view; the rest use their project colour.
+const taskTint = (t: Task) => (t.team === "bmc" ? "var(--success, #16a34a)" : color(t.project));
 const isOver = (t: Task) =>
   !!t.dueDate &&
   t.status !== "done" &&
   isBefore(new Date(t.dueDate), startOfDay(new Date()));
+// A customer-side task that ran past its due date without being completed is flagged (red, blinking border).
+const lateCustomer = (t: Task) => t.team === "bmc" && isOver(t);
 function Logos({ footer = false }: { footer?: boolean }) {
+  const brand = useBrand(),
+    logo = brand ? brand.logo || (brand.code === "BMC" ? bombayMercantileLogo : "") : "";
   return (
     <div className={footer ? "logos footerLogos" : "logos"}>
-      <span>
-        <img
-          src={bombayMercantileLogo}
-          alt="Bombay Mercantile Co-operative Bank"
-        />
-      </span>
-      <i />
+      {brand && (
+        <>
+          <span className={logo ? undefined : "brandBadge"}>
+            {logo ? <img src={logo} alt={brand.name} /> : <b title={brand.name}>{brand.code.slice(0, 4)}</b>}
+          </span>
+          <i />
+        </>
+      )}
       <span className="nyneos">
         <img src={nyneosLogo} alt="NyneOS Technologies" />
       </span>
@@ -143,23 +170,98 @@ function ThemeMenu({ close }: { close: () => void }) {
     </div>
   );
 }
-function Header({ create }: { create: () => void }) {
+function Header({
+  create,
+  onMenu,
+  admin = false,
+}: {
+  create?: () => void;
+  onMenu?: () => void;
+  admin?: boolean;
+}) {
+  const canBoard = useCan("board.view"),
+    canCreate = useCan("task.create"),
+    brand = useBrand();
   const filters = useTaskStore((s) => s.filters),
     setFilters = useTaskStore((s) => s.setFilters),
     user = useAuthStore((s) => s.user),
     logout = useAuthStore((s) => s.logout);
   const { toggleMode } = useTheme();
-  const [themeOpen, setThemeOpen] = useState(false),
+  const [route, goRoute] = usePage(),
+    external = user?.userType === "external";
+  const themeRef = useRef<HTMLDivElement>(null),
+    settingsRef = useRef<HTMLDivElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false),
+    [themeOpen, setThemeOpen] = useState(false),
     [activePage, setActivePage] = useState<"board" | "calendar">(
       user?.canManageBoard ? "board" : "calendar",
     );
+  useEffect(() => {
+    if (!themeOpen) return;
+    const away = (e: MouseEvent) => {
+      if (!themeRef.current?.contains(e.target as Node)) setThemeOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setThemeOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [themeOpen]);
+  // Phone layout: the mode / theme / user / sign-out controls collapse into one settings menu.
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const away = (e: MouseEvent) => {
+      if (!settingsRef.current?.contains(e.target as Node)) setSettingsOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setSettingsOpen(false);
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [settingsOpen]);
   return (
-    <header className="topbar">
+    <header className="topbar" ref={settingsRef}>
       <div className="headerInner">
-        <Logos />
-        {user?.role !== "bmc" && (
+        <div className="headBrand">
+          {onMenu && (
+            <button className="icon menuBtn" onClick={onMenu} aria-label="Toggle menu">
+              <MenuIcon />
+            </button>
+          )}
+          <Logos />
+          {onMenu && (
+            <div className="headTitle">
+              <strong>{brand?.name ?? "Project Dashboard"}</strong>
+              <span>Powered by NyneOS</span>
+            </div>
+          )}
+        </div>
+        <button
+          className="icon settingsBtn"
+          onClick={() => setSettingsOpen(!settingsOpen)}
+          aria-label="Settings"
+          aria-expanded={settingsOpen}
+        >
+          <Settings />
+        </button>
+        {(external || (!admin && canBoard)) && (
           <nav className="ranges">
-            {(["board", "calendar"] as const)
+            {external &&
+              (["dashboard", "mytasks"] as const).map((p) => (
+                <button
+                  key={p}
+                  className={(p === "mytasks" ? route === "mytasks" : route !== "mytasks") ? "active" : ""}
+                  onClick={() => goRoute(p)}
+                >
+                  {p === "dashboard" ? "Dashboard" : "My Tasks"}
+                </button>
+              ))}
+            {!admin && canBoard &&
+              (["board", "calendar"] as const)
               .filter((page) => page !== "board" || user?.canManageBoard)
               .map((page) => (
                 <button
@@ -178,14 +280,17 @@ function Header({ create }: { create: () => void }) {
           </nav>
         )}
         <div className="actions">
-          <label className="search">
-            <Search />
-            <input
-              aria-label="Search tasks"
-              placeholder="Search task or key…"
-              onChange={(e) => setFilters({ search: e.target.value })}
-            />
-          </label>
+          {!admin && (
+            <label className="search">
+              <Search />
+              <input
+                aria-label="Search tasks"
+                placeholder="Search task or key…"
+                onChange={(e) => setFilters({ search: e.target.value })}
+              />
+            </label>
+          )}
+          <div className={settingsOpen ? "settingsPanel open" : "settingsPanel"}>
           <button
             className="icon"
             onClick={toggleMode}
@@ -193,7 +298,7 @@ function Header({ create }: { create: () => void }) {
           >
             <Sun />
           </button>
-          <div className="relative">
+          <div className="relative" ref={themeRef}>
             <button
               className="icon"
               onClick={() => setThemeOpen(!themeOpen)}
@@ -212,10 +317,11 @@ function Header({ create }: { create: () => void }) {
           <button className="icon" onClick={logout} aria-label="Sign out">
             <LogOut />
           </button>
-          {user?.role !== "bmc" && (
+          </div>
+          {!admin && canCreate && (
             <button
               className="create"
-              onClick={create}
+              onClick={create ?? (() => dispatchEvent(new Event("bmb:create-task")))}
               aria-label="Create task"
             >
               <Plus />
@@ -243,7 +349,7 @@ function buildSummary(
   clientView = false,
 ) {
   if (clientView) {
-    // BMC users never see tasks marked NOT VISIBLE, nor alerts that point at them.
+    // Customer (external) users never see tasks marked NOT VISIBLE, nor alerts that point at them.
     tasks = tasks.filter((t) => t.clientVisible !== false);
     const keys = new Set(tasks.map((t) => t.key));
     meta = meta.map((m) => ({
@@ -304,7 +410,8 @@ function ProjectSummary() {
     [saving, setSaving] = useState(false),
     [dateError, setDateError] = useState(""),
     projects = useProjects(),
-    clientView = useAuthStore((s) => s.user?.role === "bmc"),
+    shown = useVisibleProjects(),
+    clientView = useAuthStore((s) => s.user?.userType === "external"),
     rows = useMemo(
       () => buildSummary(tasks, meta, projects, clientView),
       [tasks, meta, projects, clientView],
@@ -349,7 +456,7 @@ function ProjectSummary() {
   return (
     <>
       <section className="summaryGrid" aria-label="Project summary">
-        {rows.map((r) => (
+        {rows.filter((r) => shown.includes(r.project)).map((r) => (
           <div
             className="summaryBar"
             key={r.project}
@@ -579,7 +686,7 @@ function Overview({ tasks }: { tasks: Task[] }) {
 function Trend({ tasks }: { tasks: Task[] }) { const data = useMemo(() => Array.from({ length: 6 }, (_, i) => { const d = addMonths(new Date(2026, 8, 1), i); return { label: format(d, 'MMM'), created: tasks.filter(t => format(t.startDate ? parseISO(t.startDate) : new Date(t.createdAt), 'yyyy-MM') === format(d, 'yyyy-MM')).length, done: tasks.filter(t => t.completedAt && format(new Date(t.completedAt), 'yyyy-MM') === format(d, 'yyyy-MM')).length } }), [tasks]); const max = Math.max(1, ...data.flatMap(x => [x.created, x.done])), pts = (k: 'created' | 'done') => data.map((x, i) => `${24 + i * 66},${184 - x[k] / max * 140}`).join(' '); return <section className="card"><div className="cardHead"><div><h2>Created vs Completed</h2></div></div><svg className="trend" viewBox="0 0 380 220">{[44, 79, 114, 149, 184].map(y => <line key={y} x1="24" x2="360" y1={y} y2={y} />)}<polyline className="createdLine" points={pts('created')} /><polyline className="doneLine" points={pts('done')} />{data.map((x, i) => <g key={x.label}><circle cx={24 + i * 66} cy={184 - x.created / max * 140} r="4" /><text x={24 + i * 66} y="210">{x.label}</text><title>{x.label}: {x.created} created, {x.done} completed</title></g>)}</svg><div className="chartLegend"><span><i className="orange" />Created</span><span><i className="green" />Completed</span></div></section> }
 */
 function Progress({ tasks }: { tasks: Task[] }) {
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   return (
     <section className="card progress" id="reports">
       <div className="cardHead">
@@ -689,6 +796,13 @@ function SortCard({
           <Clock3 />
           {due(task.dueDate)}
         </span>
+        {(task.assignees?.length ?? 0) > 0 && (
+          <span className="cardAssignee" title={"Assigned to " + task.assignees!.map((p) => p.name).join(", ")}>
+            <b>{task.assignees![0].initials}</b>
+            {task.assignees![0].name}
+            {task.assignees!.length > 1 && <em>+{task.assignees!.length - 1}</em>}
+          </span>
+        )}
       </div>
       <div className="cardBottom" onClick={(event) => event.stopPropagation()}>
         <ModernSelect
@@ -893,8 +1007,24 @@ function Calendar({
   create: (s: Status, d?: string) => void;
   viewOnly?: boolean;
 }) {
-  const projects = useProjects();
-  const tasks = useTaskStore(useShallow(selectFiltered)),
+  const projects = useProjects(),
+    projectMeta = useTaskStore((st) => st.projects),
+    clientLabel = useClientLabel();
+  const allTasks = useTaskStore(useShallow(selectFiltered)),
+    [teamFilter, setTeamFilter] = useState<"all" | "nyneos" | "customer">("all"),
+    tasks = useMemo(
+      () =>
+        allTasks.filter((t) =>
+          teamFilter === "all" ? true : teamFilter === "customer" ? t.team === "bmc" : t.team !== "bmc",
+        ),
+      [allTasks, teamFilter],
+    ),
+    legendClient =
+      [...new Set(tasks.map((t) => projectMeta.find((p) => p.id === t.project)?.customerCode).filter(Boolean))].join(" / ") ||
+      clientLabel,
+    visibleProjects = useVisibleProjects(),
+    // Only the picked project shows; with a team filter on, projects that have no matching task disappear too.
+    groups = visibleProjects.filter((p) => teamFilter === "all" || tasks.some((t) => t.project === p)),
     select = useTaskStore((s) => s.selectTask),
     [view, setView] = useState<"timeline" | "month" | "week">("timeline"),
     [anchor, setAnchor] = useState(new Date()),
@@ -1100,6 +1230,7 @@ function Calendar({
               <span
                 key={d.toISOString()}
                 data-today={toISO(d) === todayISO || undefined}
+                data-now={toISO(d) === toISO(new Date()) || undefined}
                 title={format(d, "d MMM yyyy") + " · click to start the timeline here"}
                 className="dayHead"
                 role="button"
@@ -1123,7 +1254,7 @@ function Calendar({
             ))}
           </div>
         </div>
-        {projects.map((p) => (
+        {groups.map((p) => (
           <div key={p}>
             <button
               type="button"
@@ -1162,34 +1293,34 @@ function Calendar({
                     }[t.status];
                   const barColor = hasDependency(t)
                     ? "var(--danger)"
-                    : t.ownerTeam === "bmc"
+                    : t.team === "bmc"
                       ? "var(--success, #16a34a)"
                       : color(p);
                   return (
                     <div className="timelineRow" key={t.id}>
                       <span
                         className={
-                          hasDependency(t)
+                          (hasDependency(t)
                             ? "dependentName"
-                            : t.ownerTeam === "bmc"
+                            : t.team === "bmc"
                               ? "bmcName"
-                              : undefined
+                              : "") + (lateCustomer(t) ? " lateName" : "") || undefined
                         }
                       >
-                        {t.summary}
-                        {t.dependsOn?.length ? (
-                          <small className="depNote">
-                            ↳ dependent
-                          </small>
-                        ) : null}
-                        {t.ownerTeam === "bmc" ? (
-                          <small className="bmcNote">BMC</small>
-                        ) : null}
+                        <span className="rowName">{t.summary}</span>
+                        {(t.dependsOn?.length || t.team === "bmc") && (
+                          <span className="rowNotes">
+                            {t.dependsOn?.length ? <small className="depNote">↳ dependent</small> : null}
+                            {t.team === "bmc" ? (
+                              <small className="bmcNote">{projectMeta.find((p) => p.id === t.project)?.customerCode ?? clientLabel}</small>
+                            ) : null}
+                          </span>
+                        )}
                       </span>
                       <div className="lane">
                         <button
                           onClick={() => select(t.id)}
-                          className={hasDependency(t) ? "bar dependent" : "bar"}
+                          className={"bar" + (hasDependency(t) ? " dependent" : "") + (lateCustomer(t) ? " late" : "")}
                           data-key={t.key}
                           onMouseEnter={() => setHoverKey(t.key)}
                           onMouseLeave={() => setHoverKey(null)}
@@ -1201,7 +1332,7 @@ function Calendar({
                             borderColor: barColor,
                             background: `color-mix(in srgb, ${barColor} 24%, var(--surface))`,
                           }}
-                          title={`${t.summary} · ${statusName[t.status]}${dependencyTitle(t)}`}
+                          title={`${t.summary} · ${statusName[t.status]}${dependencyTitle(t)}${lateCustomer(t) ? " · overdue (customer side)" : ""}`}
                         >
                           <i
                             style={{ width: `${pc}%`, background: color(p) }}
@@ -1277,14 +1408,14 @@ function Calendar({
             {list.slice(0, 3).map((t) => (
               <i
                 key={t.id}
-                className={hasDependency(t) ? "dependent" : undefined}
+                className={[hasDependency(t) && "dependent", lateCustomer(t) && "late"].filter(Boolean).join(" ") || undefined}
                 title={t.summary + dependencyTitle(t)}
                 style={{
-                  border: "1px solid " + color(t.project),
+                  border: "1px solid " + taskTint(t),
                   borderRadius: 999,
                   color: "#000",
                   background:
-                    "color-mix(in srgb, " + color(t.project) + " 28%, #fff)",
+                    "color-mix(in srgb, " + taskTint(t) + " 28%, #fff)",
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1305,22 +1436,22 @@ function Calendar({
       {days.map((d) => {
         const iso = toISO(d);
         return (
-          <div key={iso}>
+          <div key={iso} className={iso === toISO(new Date()) ? "today" : undefined}>
             <h4>{format(d, "EEE d")}</h4>
             {tasks
               .filter((t) => t.dueDate === iso)
               .map((t) => (
                 <button
                   key={t.id}
-                  className={hasDependency(t) ? "dependent" : undefined}
+                  className={[hasDependency(t) && "dependent", lateCustomer(t) && "late"].filter(Boolean).join(" ") || undefined}
                   title={t.summary + dependencyTitle(t)}
                   onClick={() => select(t.id)}
                   style={{
-                    border: "1px solid " + color(t.project),
+                    border: "1px solid " + taskTint(t),
                     borderRadius: 999,
                     color: "#000",
                     background:
-                      "color-mix(in srgb, " + color(t.project) + " 28%, #fff)",
+                      "color-mix(in srgb, " + taskTint(t) + " 28%, #fff)",
                   }}
                 >
                   {t.key}
@@ -1340,6 +1471,20 @@ function Calendar({
           <h2>Calendar</h2>
         </div>
         <div className="calendarTools">
+          <div className="rangeTabs" role="tablist" aria-label="Filter by team">
+            {(
+              [
+                ["all", "All", allTasks.length],
+                ["nyneos", "NyneOS", allTasks.filter((t) => t.team !== "bmc").length],
+                ["customer", "Customer", allTasks.filter((t) => t.team === "bmc").length],
+              ] as const
+            ).map(([k, label, n]) => (
+              <button key={k} role="tab" aria-selected={teamFilter === k} className={teamFilter === k ? "active" : ""} onClick={() => setTeamFilter(k)} title={k === "all" ? "All tasks" : k === "nyneos" ? "NyneOS tasks" : "Customer tasks"}>
+                {label}
+                <b>{n}</b>
+              </button>
+            ))}
+          </div>
           <div className="segments">
             {(["timeline", "month", "week"] as const).map((v) => (
               <button
@@ -1378,8 +1523,13 @@ function Calendar({
       {view === "timeline" && (
         <p className="depLegend">
           <span>
-            <span className="swatch bmc" /> Green: BMC side task
+            <span className="swatch bmc" /> Green: {legendClient} side task
           </span>
+          {tasks.some((t) => hasDependency(t)) && (
+            <span>
+              <span className="swatch dep" /> Red: dependent task
+            </span>
+          )}
           {links.length > 0 && (
             <>
               <span>
@@ -1401,10 +1551,39 @@ function TaskDetailsModal() {
     select = useTaskStore((s) => s.selectTask),
     update = useTaskStore((s) => s.updateTask),
     remove = useTaskStore((s) => s.deleteTask),
-    readOnly = useAuthStore((s) => s.user?.role !== "nyneos"),
+    readOnly = !useCan("task.edit"),
+    canDelete = useCan("task.delete"),
+    canVisibility = useCan("task.visibility.manage"),
+    canTeam = useCan("task.team.manage"),
+    canDeps = useCan("task.dependencies.edit"),
+    canAssign = useCan("task.assign"),
+    projCustomer = useProjectCustomer(task?.project),
+    [people, setPeople] = useState<Assignee[]>([]),
+    [peopleError, setPeopleError] = useState(false),
     [pendingStatus, setPendingStatus] = useState<Status | null>(null),
     [confirmDelete, setConfirmDelete] = useState(false),
     allTasks = useTaskStore((s) => s.tasks);
+  const detailProject = task?.project;
+  useEffect(() => {
+    if (!canAssign || !detailProject) {
+      setPeople([]);
+      return;
+    }
+    let live = true;
+    setPeopleError(false);
+    api
+      .assignees(detailProject)
+      .then((list) => live && setPeople(list))
+      .catch(() => {
+        if (live) {
+          setPeople([]);
+          setPeopleError(true);
+        }
+      });
+    return () => {
+      live = false;
+    };
+  }, [canAssign, detailProject]);
   if (!id || !task) return null;
   return (
     <>
@@ -1425,7 +1604,7 @@ function TaskDetailsModal() {
             {task.key} · {task.type}
           </span>
           <div className="popupHeadActions">
-            {!readOnly && (
+            {canDelete && (
               <button
                 className="icon dangerIcon"
                 onClick={() => setConfirmDelete(true)}
@@ -1536,18 +1715,22 @@ function TaskDetailsModal() {
           Team
           <ModernSelect
             ariaLabel="Task team"
-            disabled={readOnly}
-            value={task.ownerTeam ?? "nyneos"}
+            disabled={!canTeam}
+            value={task.team ?? "nyneos"}
             options={[
               { value: "nyneos", label: "NyneOS" },
-              { value: "bmc", label: "BMC" },
+              ...(projCustomer?.internal ? [] : [{ value: "bmc", label: projCustomer?.name ?? "Customer" }]),
             ]}
             onChange={(value) =>
-              update(task.id, { ownerTeam: value as Task["ownerTeam"] })
+              update(task.id, {
+                team: value as Task["team"],
+                // people from the other team can no longer be on the task
+                assignees: (task.assignees ?? []).filter((p) => p.userType === (value === "bmc" ? "external" : "internal")),
+              })
             }
           />
         </label>
-        {!readOnly && (
+        {canVisibility && (
           <div className="visibilityField">
             Visibility
             <VisibilityToggle
@@ -1557,6 +1740,51 @@ function TaskDetailsModal() {
           </div>
         )}
         </div>
+        {(canAssign || (task.assignees?.length ?? 0) > 0) && (
+          <div className="assigneeField">
+            Assignees
+            {canAssign ? (
+              <MultiSelect
+                ariaLabel="Assignees"
+                placeholder="Unassigned"
+                emptyText={peopleError ? "Could not load members" : "No members for this team"}
+                values={(task.assignees ?? []).map((p) => p.id)}
+                options={people
+                  .filter((p) => p.userType === (task.team === "bmc" ? "external" : "internal"))
+                  .map((p) => ({ value: p.id, label: p.name }))}
+                onChange={(ids) =>
+                  update(task.id, {
+                    assignees: ids.map((id) => people.find((p) => p.id === id) ?? (task.assignees ?? []).find((p) => p.id === id)!).filter(Boolean),
+                  })
+                }
+              />
+            ) : (
+              <span className="readonlyValue">{(task.assignees ?? []).map((p) => p.name).join(", ")}</span>
+            )}
+          </div>
+        )}
+        {(canAssign || task.reportingTo) && (
+          <div className="assigneeField">
+            Reporting to
+            {canAssign ? (
+              <ModernSelect
+                ariaLabel="Reporting to"
+                searchable
+                value={task.reportingTo?.id ?? ""}
+                options={[
+                  { value: "", label: "Nobody" },
+                  ...people.map((p) => ({
+                    value: p.id,
+                    label: `${p.name} · ${p.userType === "internal" ? "NyneOS" : (projCustomer?.name ?? "Customer")}`,
+                  })),
+                ]}
+                onChange={(value) => update(task.id, { reportingTo: people.find((p) => p.id === value) ?? null })}
+              />
+            ) : (
+              <span className="readonlyValue">{task.reportingTo?.name}</span>
+            )}
+          </div>
+        )}
         <div className="dependencyField">
           Depends on
           <DependencyPicker
@@ -1568,7 +1796,7 @@ function TaskDetailsModal() {
             )}
             selected={task.dependsOn ?? []}
             custom={task.customDependencies ?? []}
-            disabled={readOnly}
+            disabled={!canDeps}
             onChange={(keys) => update(task.id, { dependsOn: keys })}
             onCustomChange={(values) =>
               update(task.id, { customDependencies: values })
@@ -1618,10 +1846,12 @@ function TaskDetailsModal() {
     </>
   );
 }
-function Dashboard() {
-  const projects = useProjects();
-  const canBoard = useAuthStore((s) => !!s.user?.canManageBoard),
-    viewOnly = useAuthStore((s) => s.user?.role === "bmc"),
+function Dashboard({ embedded = false }: { embedded?: boolean }) {
+  const projects = useProjects(),
+    brand = useBrand(),
+    viewing = useViewingLabel();
+  const canBoard = useCan("board.view"),
+    viewOnly = !useCan("task.create"),
     tasks = useTaskStore(useShallow(selectFiltered)),
     all = useTaskStore((s) => s.tasks),
     filters = useTaskStore((s) => s.filters),
@@ -1636,6 +1866,13 @@ function Dashboard() {
     setDefaults({ status, date });
     setModal(true);
   };
+  useEffect(() => {
+    // The shell's header owns the "+" button; it asks the dashboard to open the create dialog.
+    if (!embedded) return;
+    const open = () => create();
+    addEventListener("bmb:create-task", open);
+    return () => removeEventListener("bmb:create-task", open);
+  });
   const created = (key: string) => {
     setToast(`${key} created`);
     setModal(false);
@@ -1643,9 +1880,21 @@ function Dashboard() {
   };
   return (
     <>
-      <div className="accentStrip" />
-      <Header create={() => create()} />
+      {!embedded && (
+        <>
+          <div className="accentStrip" />
+          <Header create={() => create()} />
+        </>
+      )}
       <main>
+        {embedded && (
+          <div className="viewingBar">
+            <span>
+              Viewing <strong>{viewing}</strong>
+            </span>
+            <a href="#/customers">Change customer</a>
+          </div>
+        )}
         <section className="hero">
           <h1>
             Project Dashboard
@@ -1683,7 +1932,7 @@ function Dashboard() {
         <footer className="siteFooter">
           <Logos footer />
           <span>
-            © Bombay Mercantile Co-operative Bank Ltd. · Powered by NyneOS
+            © {brand?.name ?? "NyneOS Technologies"} · Powered by NyneOS
             Technologies
           </span>
         </footer>
@@ -1718,16 +1967,18 @@ export default function App() {
     addEventListener("bmb:unauthorized", out);
     return () => removeEventListener("bmb:unauthorized", out);
   }, [restore, logout]);
+  const mustChange = !!user?.mustChangePassword;
   useEffect(() => {
-    if (user) {
+    if (user && !mustChange) {
       setLoadError("");
       loadAll().catch((e) =>
         setLoadError(e instanceof Error ? e.message : "Unable to load data"),
       );
     }
-  }, [user, loadAll]);
-  if (checking) return <div className="loginPage" />;
+  }, [user, mustChange, loadAll]);
+  if (checking) return <Loader screen />;
   if (!user) return <Login />;
+  if (mustChange) return <ChangePassword />;
   if (loadError)
     return (
       <div className="loginPage">
@@ -1740,6 +1991,101 @@ export default function App() {
         </div>
       </div>
     );
-  if (!loaded) return <div className="loginPage" />;
-  return <Dashboard />;
+  if (!loaded) return <Loader screen />;
+  // External (customer) users get the plain dashboard; internal NyneOS users get the sidebar workspace.
+  return user.userType === "internal" ? <InternalShell /> : <ExternalShell />;
+}
+
+function InternalShell() {
+  const permissions = useAuthStore((s) => s.user?.permissions ?? []),
+    loadCustomers = useTaskStore((s) => s.loadCustomers),
+    setCustomer = useTaskStore((s) => s.setCustomer),
+    [requested, go] = usePage(),
+    [menu, setMenu] = useState(false),
+    [collapsed, setCollapsed] = useState(() => {
+      try {
+        return localStorage.getItem("bmb_side_collapsed") === "1";
+      } catch {
+        return false;
+      }
+    }),
+    [headH, setHeadH] = useState(86),
+    allowed = allowedPages(permissions),
+    page: Page = allowed.includes(requested) ? requested : "dashboard";
+  useEffect(() => {
+    if (permissions.includes("customer.view")) void loadCustomers().catch(() => undefined);
+  }, [permissions, loadCustomers]);
+  // The sidebar sits right under the header, so it needs the header's real height.
+  useLayoutEffect(() => {
+    const bar = document.querySelector<HTMLElement>(".topbar");
+    if (!bar) return;
+    const measure = () => setHeadH(bar.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      addEventListener("resize", measure);
+      return () => removeEventListener("resize", measure);
+    }
+    const ro = new ResizeObserver(measure);
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, [page]);
+  const toggle = () => {
+    // Phones: open the drawer. Larger screens: collapse to an icon rail / expand.
+    if (window.matchMedia("(max-width: 900px)").matches) return setMenu(true);
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem("bmb_side_collapsed", c ? "0" : "1");
+      } catch {
+        /* storage unavailable */
+      }
+      return !c;
+    });
+  };
+  const openCustomer = (code: string) => {
+    void setCustomer(code);
+    go("dashboard");
+  };
+  // "My Tasks" spans every customer; make sure the task is loaded (switching the customer view if needed), then open it.
+  const openTask = async (task: Task, customerCode: string | null) => {
+    if (!useTaskStore.getState().tasks.some((t) => t.id === task.id)) await setCustomer(customerCode ?? "all");
+    useTaskStore.getState().selectTask(task.id);
+  };
+  return (
+    <div className={"appShell" + (collapsed ? " sideCollapsed" : "")} style={{ "--head-h": headH + "px" } as React.CSSProperties}>
+      <Header admin={page !== "dashboard"} onMenu={toggle} />
+      <div className="appRow">
+        <Sidebar page={page} go={go} open={menu} collapsed={collapsed} onClose={() => setMenu(false)} />
+        <div className="appBody">
+          {page === "dashboard" ? (
+            <Dashboard embedded />
+          ) : (
+            <main className="adminMain">
+              {page === "mytasks" && <MyTasksPage onOpen={(t, c) => void openTask(t, c)} />}
+              {page === "customers" && <CustomersPage onOpen={openCustomer} />}
+              {page === "projects" && <ProjectsPage />}
+              {page === "users" && <UsersPage />}
+              {page === "roles" && <RolesPage />}
+              {page === "mytasks" && <TaskDetailsModal />}
+            </main>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Customer users: the dashboard plus a "My Tasks" tab (the header's Dashboard / My Tasks switch), no sidebar.
+function ExternalShell() {
+  const [route] = usePage();
+  if (route !== "mytasks") return <Dashboard />;
+  return (
+    <>
+      <div className="accentStrip" />
+      <Header admin />
+      <main className="adminMain">
+        <MyTasksPage onOpen={(t) => useTaskStore.getState().selectTask(t.id)} />
+        <TaskDetailsModal />
+      </main>
+    </>
+  );
 }
