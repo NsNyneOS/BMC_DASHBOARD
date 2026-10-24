@@ -27,7 +27,7 @@ func TestProjectScopeInternal(t *testing.T) {
 	if cond != "c.code = $4" || len(args) != 1 || args[0] != "ACME" {
 		t.Fatalf("customer filter should be upper-cased and numbered after the base: %q %v", cond, args)
 	}
-	if cond, _ := projectScope(all, "all", 0); cond != "c.customer_type = 'client'" {
+	if cond, _ := projectScope(all, "all", 0); cond != "c.customer_type = 'client' AND c.status = 'active'" {
 		t.Fatalf("'all' is the customers' combined view without the owner's internal projects, got %q", cond)
 	}
 	if cond, args := projectScope(all, "nyneos", 0); cond != "c.code = $1" || args[0] != "NYNEOS" {

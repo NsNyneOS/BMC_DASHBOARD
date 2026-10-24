@@ -56,12 +56,14 @@ func projectScope(u *user, customerCode string, base int) (string, []any) {
 			OR EXISTS (SELECT 1 FROM user_project_access x WHERE x.user_id = $%[2]d::uuid AND x.project_id = pm.id))`, base+1, base+2),
 			[]any{cid, u.ID}
 	}
-	// "ALL" is the combined view of the customers NyneOS serves: the owner's own (internal) projects are not mixed in.
+	// "ALL" is the combined view of the customers NyneOS serves: the owner's own (internal) projects are not mixed in,
+	// and neither is anything belonging to an inactive customer (it stays reachable on the Customers / Projects pages and
+	// through that customer's own dashboard, so it can be reactivated).
 	// "" means no filter at all (permission lookups); a code selects that customer, or the owner's internal projects.
 	cond, args := "TRUE", []any{}
 	switch cc := strings.ToUpper(strings.TrimSpace(customerCode)); {
 	case cc == "ALL":
-		cond = "c.customer_type = 'client'"
+		cond = "c.customer_type = 'client' AND c.status = 'active'"
 	case cc != "":
 		args = append(args, cc)
 		cond = fmt.Sprintf("c.code = $%d", base+len(args))

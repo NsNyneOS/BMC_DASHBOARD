@@ -8,12 +8,12 @@ import{useTaskStore}from'../store/useTaskStore';
 import type{Priority,Status,Task}from'../types/task';
 import{Badge,PageHead,useLoad}from'./ui';
 
-const statusLabel:Record<Status,string>={todo:'New',in_progress:'In Progress',testing:'Testing/Review',in_review:'Deploying',done:'Completed'};
-const statusTone:Record<Status,'neutral'|'info'|'warn'|'ok'>={todo:'neutral',in_progress:'info',testing:'warn',in_review:'info',done:'ok'};
+const statusLabel:Record<Status,string>={todo:'New',in_progress:'In Progress',developing:'Developing',testing:'Testing',review:'Review',completed:'Completed',in_review:'Deploying',rework:'Rework',done:'Finished'};
+const statusTone:Record<Status,'neutral'|'info'|'warn'|'ok'>={todo:'neutral',in_progress:'info',developing:'info',testing:'warn',review:'warn',completed:'ok',in_review:'info',rework:'warn',done:'ok'};
 const priorityLabel:Record<Priority,string>={highest:'Highest',high:'High',medium:'Medium',low:'Low',lowest:'Lowest'};
 const priorityTone:Record<Priority,'bad'|'warn'|'neutral'>={highest:'bad',high:'bad',medium:'warn',low:'neutral',lowest:'neutral'};
 const priorityRank:Record<Priority,number>={highest:0,high:1,medium:2,low:3,lowest:4};
-const statusRank:Record<Status,number>={todo:0,in_progress:1,testing:2,in_review:3,done:4};
+const statusRank:Record<Status,number>={todo:0,in_progress:1,developing:2,testing:3,review:4,completed:5,in_review:6,rework:7,done:8};
 const when=(d:string|null)=>d?format(new Date(`${d}T12:00:00`),'MMM d, yyyy'):'—';
 const ymd=(d:Date)=>format(d,'yyyy-MM-dd');
 const overdue=(t:Task)=>!!t.dueDate&&t.status!=='done'&&t.dueDate<ymd(new Date());

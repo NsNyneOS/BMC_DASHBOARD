@@ -1,4 +1,4 @@
-import{Building2,FolderKanban,LayoutDashboard,ListChecks,ShieldCheck,Users,X,type LucideIcon}from'lucide-react';
+import{Building2,FolderKanban,LayoutDashboard,ListChecks,ListTodo,ScrollText,ShieldCheck,Users,X,type LucideIcon}from'lucide-react';
 import{useAuthStore}from'../store/useAuthStore';
 import{canAccess,type Page}from'../utils/route';
 
@@ -6,10 +6,12 @@ import{canAccess,type Page}from'../utils/route';
 const items:{page:Page;label:string;icon:LucideIcon}[]=[
   {page:'dashboard',label:'Dashboard',icon:LayoutDashboard},
   {page:'mytasks',label:'My Tasks',icon:ListChecks},
+  {page:'alltasks',label:'All Tasks',icon:ListTodo},
   {page:'customers',label:'Customers',icon:Building2},
   {page:'projects',label:'Projects',icon:FolderKanban},
   {page:'users',label:'Users & Access',icon:Users},
-  {page:'roles',label:'Roles & Permissions',icon:ShieldCheck}
+  {page:'roles',label:'Roles & Permissions',icon:ShieldCheck},
+  {page:'audit',label:'Audit',icon:ScrollText}
 ];
 
 

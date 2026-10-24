@@ -60,31 +60,40 @@ import Sidebar from "./components/Sidebar";
 import { useAuth } from "./auth/AuthProvider";
 import { ProtectedRoute, RequireAuth } from "./auth/ProtectedRoute";
 import MyTasksPage from "./pages/MyTasksPage";
+import AllTasksPage from "./pages/AllTasksPage";
 import CustomersPage from "./pages/CustomersPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import UsersPage from "./pages/UsersPage";
 import RolesPage from "./pages/RolesPage";
+import AuditPage from "./pages/AuditPage";
+import NotFoundPage from "./pages/NotFoundPage";
 import type { ProjectMeta } from "./api/client";
 import Login from "./components/Login";
 import ChangePassword from "./components/ChangePassword";
 import Loader from "./components/Loader";
-import { selectFiltered } from "./store/selectors";
+import { selectFiltered, NONE } from "./store/selectors";
 import { useTheme, type Mode, type Theme } from "./theme/ThemeProvider";
 import { monthGrid, toISO } from "./utils/date";
 import type { ProjectId, Status, Task } from "./types/task";
 import TaskModal from "./components/TaskModal";
 import ModernSelect from "./components/ModernSelect";
 import MultiSelect from "./components/MultiSelect";
+import ReportModal from "./components/ReportModal";
+import MyTasksCard from "./components/MyTasksCard";
 import ConfirmDialog from "./components/ConfirmDialog";
 import bombayMercantileLogo from "../assets/bombay_mercantile_bank_logo.png";
 import nyneosLogo from "../assets/nyneos_logo.png";
-const statuses: Status[] = ["todo", "in_progress", "testing", "in_review", "done"];
+const statuses: Status[] = ["todo", "in_progress", "developing", "testing", "review", "completed", "in_review", "rework", "done"];
 const statusName: Record<Status, string> = {
   todo: "New",
   in_progress: "In Progress",
-  testing: "Testing/Review",
+  developing: "Developing",
+  testing: "Testing",
+  review: "Review",
+  completed: "Completed",
   in_review: "Deploying",
-  done: "Completed",
+  rework: "Rework",
+  done: "Finished",
 };
 // Projects come from the API (project_master), already limited to what this user may see.
 const useProjects = () =>
@@ -188,8 +197,6 @@ function Header({
     setFilters = useTaskStore((s) => s.setFilters),
     { user, logout } = useAuth();
   const { toggleMode } = useTheme();
-  const [route, goRoute] = usePage(),
-    external = user?.userType === "external";
   const themeRef = useRef<HTMLDivElement>(null),
     settingsRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false),
@@ -249,20 +256,9 @@ function Header({
         >
           <Settings />
         </button>
-        {(external || (!admin && canBoard)) && (
+        {!admin && canBoard && (
           <nav className="ranges">
-            {external &&
-              (["dashboard", "mytasks"] as const).map((p) => (
-                <button
-                  key={p}
-                  className={(p === "mytasks" ? route === "mytasks" : route !== "mytasks") ? "active" : ""}
-                  onClick={() => goRoute(p)}
-                >
-                  {p === "dashboard" ? "Dashboard" : "My Tasks"}
-                </button>
-              ))}
-            {!admin && canBoard &&
-              (["board", "calendar"] as const)
+            {(["board", "calendar"] as const)
               .filter((page) => page !== "board" || user?.canManageBoard)
               .map((page) => (
                 <button
@@ -481,26 +477,16 @@ function ProjectSummary() {
                   {r.end && r.end !== r.start ? ` – ${due(r.end)}` : ""}
                 </span>
               </div>
-              <div className="summaryTrack">
-                <i style={{ width: `${r.percent}%` }} />
-              </div>
-              <div className="summaryFoot">
+              <div className="summaryProgress">
+                <div className="track">
+                  <i className="seg done" style={{ width: `${r.percent}%`, background: "var(--accent)" }} />
+                  <i
+                    className="seg active"
+                    style={{ width: `${r.startedPercent - r.percent}%`, background: "var(--accent)" }}
+                  />
+                </div>
                 <span>
-                  <b>{r.percent}%</b> complete
-                </span>
-                <span>
-                  {r.done} of {r.list.length} done
-                </span>
-              </div>
-              <div className="summaryTrack started">
-                <i style={{ width: `${r.startedPercent}%` }} />
-              </div>
-              <div className="summaryFoot">
-                <span>
-                  <b>{r.startedPercent}%</b> in progress
-                </span>
-                <span>
-                  {r.started} of {r.list.length} started
+                  <b>{r.started - r.done}</b> In Progress · <b>{r.done}</b> Completed
                 </span>
               </div>
             </button>
@@ -628,10 +614,7 @@ function Overview({ tasks }: { tasks: Task[] }) {
   const total = tasks.length,
     done = tasks.filter((t) => t.status === "done").length,
     progress = tasks.filter(
-      (t) =>
-        t.status === "in_progress" ||
-        t.status === "testing" ||
-        t.status === "in_review",
+      (t) => t.status !== "todo" && t.status !== "done",
     ).length;
   const r = 65,
     c = 2 * Math.PI * r;
@@ -686,47 +669,6 @@ function Overview({ tasks }: { tasks: Task[] }) {
 /* Created vs Completed widget (disabled)
 function Trend({ tasks }: { tasks: Task[] }) { const data = useMemo(() => Array.from({ length: 6 }, (_, i) => { const d = addMonths(new Date(2026, 8, 1), i); return { label: format(d, 'MMM'), created: tasks.filter(t => format(t.startDate ? parseISO(t.startDate) : new Date(t.createdAt), 'yyyy-MM') === format(d, 'yyyy-MM')).length, done: tasks.filter(t => t.completedAt && format(new Date(t.completedAt), 'yyyy-MM') === format(d, 'yyyy-MM')).length } }), [tasks]); const max = Math.max(1, ...data.flatMap(x => [x.created, x.done])), pts = (k: 'created' | 'done') => data.map((x, i) => `${24 + i * 66},${184 - x[k] / max * 140}`).join(' '); return <section className="card"><div className="cardHead"><div><h2>Created vs Completed</h2></div></div><svg className="trend" viewBox="0 0 380 220">{[44, 79, 114, 149, 184].map(y => <line key={y} x1="24" x2="360" y1={y} y2={y} />)}<polyline className="createdLine" points={pts('created')} /><polyline className="doneLine" points={pts('done')} />{data.map((x, i) => <g key={x.label}><circle cx={24 + i * 66} cy={184 - x.created / max * 140} r="4" /><text x={24 + i * 66} y="210">{x.label}</text><title>{x.label}: {x.created} created, {x.done} completed</title></g>)}</svg><div className="chartLegend"><span><i className="orange" />Created</span><span><i className="green" />Completed</span></div></section> }
 */
-function Progress({ tasks }: { tasks: Task[] }) {
-  const projects = useVisibleProjects();
-  return (
-    <section className="card progress" id="reports">
-      <div className="cardHead">
-        <div>
-          <h2>Project Progress</h2>
-        </div>
-        <TrendingUp />
-      </div>
-      <div className="progressList">
-        {projects.map((p) => {
-          const a = tasks.filter((t) => t.project === p),
-            d = a.filter((t) => t.status === "done").length,
-            ip = a.filter((t) =>
-              ["in_progress", "testing", "in_review"].includes(t.status),
-            ).length,
-            pct = (n: number) => `${a.length ? (n / a.length) * 100 : 0}%`;
-          return (
-            <div className="progressRow" key={p}>
-              <strong>{projectName(p)}</strong>
-              <div className="track">
-                <i
-                  className="seg done"
-                  style={{ width: pct(d), background: color(p) }}
-                />
-                <i
-                  className="seg active"
-                  style={{ width: pct(ip), background: color(p) }}
-                />
-              </div>
-              <span>
-                <b>{ip}</b> In Progress · <b>{d}</b> Completed
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 const BOARD_PAGE_SIZE = 4;
 function DropColumn({
   status,
@@ -741,6 +683,7 @@ function DropColumn({
   return (
     <div
       ref={setNodeRef}
+      data-status={status}
       className={"column status" + index + (isOver ? " dropActive" : "")}
     >
       {children}
@@ -793,10 +736,6 @@ function SortCard({
       </div>
       <h3>{task.summary}</h3>
       <div className="cardMeta">
-        <span className={isOver(task) ? "overdue" : ""}>
-          <Clock3 />
-          {due(task.dueDate)}
-        </span>
         {(task.assignees?.length ?? 0) > 0 && (
           <span className="cardAssignee" title={"Assigned to " + task.assignees!.map((p) => p.name).join(", ")}>
             <b>{task.assignees![0].initials}</b>
@@ -804,6 +743,10 @@ function SortCard({
             {task.assignees!.length > 1 && <em>+{task.assignees!.length - 1}</em>}
           </span>
         )}
+        <span className={isOver(task) ? "overdue" : ""}>
+          <Clock3 />
+          {due(task.dueDate)}
+        </span>
       </div>
       <div className="cardBottom" onClick={(event) => event.stopPropagation()}>
         <ModernSelect
@@ -1188,16 +1131,10 @@ function Calendar({
     const DAY = 44,
       dated = tasks.filter((t) => t.startDate && t.dueDate),
       stamps = dated.flatMap((t) => [t.startDate!, t.dueDate!]).sort(),
-      nextWeekday = (d: Date) => {
-        const dow = d.getDay();
-        return dow === 6 ? addDays(d, 2) : dow === 0 ? addDays(d, 1) : d;
-      },
-      from = nextWeekday(
-        startOfDay(
-          stamps.length && parseISO(stamps[0]) < subDays(anchor, 7)
-            ? subDays(parseISO(stamps[0]), 3)
-            : subDays(anchor, 7),
-        ),
+      from = startOfDay(
+        stamps.length && parseISO(stamps[0]) < subDays(anchor, 7)
+          ? subDays(parseISO(stamps[0]), 3)
+          : subDays(anchor, 7),
       ),
       last = stamps.length ? parseISO(stamps[stamps.length - 1]) : anchor,
       to = addDays(
@@ -1207,17 +1144,19 @@ function Calendar({
       tdays = Array.from(
         { length: differenceInCalendarDays(to, from) + 1 },
         (_, i) => addDays(from, i),
-      ).filter((d) => d.getDay() !== 0 && d.getDay() !== 6),
+      ),
       dayIndex = new Map(tdays.map((d, i) => [toISO(d), i])),
       slot = (iso: string) =>
-        dayIndex.get(toISO(nextWeekday(startOfDay(parseISO(iso))))) ?? 0,
-      todayISO = toISO(nextWeekday(startOfDay(new Date())));
+        dayIndex.get(toISO(startOfDay(parseISO(iso)))) ?? 0,
+      todayISO = toISO(new Date());
     return (
       <div
         className="timeline"
         style={
           {
             "--day": DAY + "px",
+            // Distance from the left edge to the first Saturday, used to shade weekend columns grey.
+            "--wk": ((6 - from.getDay() + 7) % 7) * DAY + "px",
             width: 245 + tdays.length * DAY,
           } as React.CSSProperties
         }
@@ -1231,6 +1170,7 @@ function Calendar({
               <span
                 key={d.toISOString()}
                 data-today={toISO(d) === todayISO || undefined}
+                data-weekend={d.getDay() === 0 || d.getDay() === 6 || undefined}
                 data-now={toISO(d) === toISO(new Date()) || undefined}
                 title={format(d, "d MMM yyyy") + " · click to start the timeline here"}
                 className="dayHead"
@@ -1287,9 +1227,13 @@ function Calendar({
                     w = Math.max(DAY, (end - start + 1) * DAY),
                     pc = {
                       todo: 0,
-                      in_progress: 40,
-                      testing: 65,
-                      in_review: 80,
+                      in_progress: 20,
+                      developing: 35,
+                      testing: 50,
+                      review: 60,
+                      completed: 70,
+                      in_review: 85,
+                      rework: 35,
                       done: 100,
                     }[t.status];
                   const barColor = hasDependency(t)
@@ -1505,7 +1449,23 @@ function Calendar({
           >
             <ChevronLeft />
           </button>
-          <button className="pill" onClick={() => setAnchor(new Date())}>
+          <button
+            className="pill"
+            onClick={() => {
+              setAnchor(new Date());
+              // Scroll to today's column (weekends included), even if the anchor date did not change.
+              requestAnimationFrame(() => {
+                const box = cardRef.current,
+                  el = box?.querySelector<HTMLElement>("[data-now]");
+                if (!box || !el || view !== "timeline") return;
+                const left =
+                  el.getBoundingClientRect().left -
+                  box.getBoundingClientRect().left +
+                  box.scrollLeft;
+                box.scrollTo({ left: Math.max(0, left - 245 - 44 * 2), behavior: "smooth" });
+              });
+            }}
+          >
             Today
           </button>
           <button
@@ -1525,6 +1485,9 @@ function Calendar({
         <p className="depLegend">
           <span>
             <span className="swatch bmc" /> Green: {legendClient} side task
+          </span>
+          <span>
+            <span className="swatch holiday" /> Grey: weekend / holiday
           </span>
           {tasks.some((t) => hasDependency(t)) && (
             <span>
@@ -1548,9 +1511,14 @@ function Calendar({
 }
 function TaskDetailsModal() {
   const id = useTaskStore((s) => s.selectedTask),
-    task = useTaskStore((s) => s.tasks.find((t) => t.id === s.selectedTask)),
+    saved = useTaskStore((s) => s.tasks.find((t) => t.id === s.selectedTask)),
     select = useTaskStore((s) => s.selectTask),
-    update = useTaskStore((s) => s.updateTask),
+    commit = useTaskStore((s) => s.updateTask),
+    // Edits stay in this draft until Save is pressed.
+    [draft, setDraft] = useState<Partial<Task>>({}),
+    task = saved && ({ ...saved, ...draft } as Task),
+    dirty = Object.keys(draft).length > 0,
+    update = (_id: string, patch: Partial<Task>) => setDraft((d) => ({ ...d, ...patch })),
     remove = useTaskStore((s) => s.deleteTask),
     readOnly = !useCan("task.edit"),
     canDelete = useCan("task.delete"),
@@ -1565,6 +1533,7 @@ function TaskDetailsModal() {
     [confirmDelete, setConfirmDelete] = useState(false),
     allTasks = useTaskStore((s) => s.tasks);
   const detailProject = task?.project;
+  useEffect(() => setDraft({}), [id]);
   useEffect(() => {
     if (!canAssign || !detailProject) {
       setPeople([]);
@@ -1605,6 +1574,25 @@ function TaskDetailsModal() {
             {task.key} · {task.type}
           </span>
           <div className="popupHeadActions">
+            {!readOnly && (
+              <>
+                {dirty && (
+                  <button className="pill" onClick={() => setDraft({})}>
+                    Discard
+                  </button>
+                )}
+                <button
+                  className="primary saveBtn"
+                  disabled={!dirty}
+                  onClick={() => {
+                    commit(task.id, draft);
+                    setDraft({});
+                  }}
+                >
+                  Save
+                </button>
+              </>
+            )}
             {canDelete && (
               <button
                 className="icon dangerIcon"
@@ -1760,7 +1748,7 @@ function TaskDetailsModal() {
                 }
               />
             ) : (
-              <span className="readonlyValue">{(task.assignees ?? []).map((p) => p.name).join(", ")}</span>
+              <span className="readonlyPills">{(task.assignees ?? []).map((p) => <span className="valuePill" key={p.id}>{p.name}</span>)}</span>
             )}
           </div>
         )}
@@ -1782,11 +1770,11 @@ function TaskDetailsModal() {
                 onChange={(value) => update(task.id, { reportingTo: people.find((p) => p.id === value) ?? null })}
               />
             ) : (
-              <span className="readonlyValue">{task.reportingTo?.name}</span>
+              <span className="readonlyPills"><span className="valuePill">{task.reportingTo?.name}</span></span>
             )}
           </div>
         )}
-        <div className="dependencyField">
+        {(canDeps || (task.dependsOn?.length ?? 0) + (task.customDependencies?.length ?? 0) > 0) && <div className="dependencyField">
           Depends on
           <DependencyPicker
             tasks={allTasks.filter(
@@ -1803,7 +1791,7 @@ function TaskDetailsModal() {
               update(task.id, { customDependencies: values })
             }
           />
-        </div>
+        </div>}
       </div>
       <ConfirmDialog
         open={confirmDelete}
@@ -1861,7 +1849,29 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
     [defaults, setDefaults] = useState<{ status: Status; date?: string }>({
       status: "todo",
     }),
-    [toast, setToast] = useState("");
+    [toast, setToast] = useState(""),
+    { user, can } = useAuth(),
+    showMine = user?.userType === "external" || can("mytasks.view"),
+    setCustomer = useTaskStore((s) => s.setCustomer),
+    [reportOpen, setReportOpen] = useState(false),
+    projectMeta = useTaskStore((s) => s.projects);
+  // "My Tasks" spans every customer: if the task is not in the current view, switch to its customer first, then open it.
+  const openMine = async (t: Task) => {
+    if (!useTaskStore.getState().tasks.some((x) => x.id === t.id)) {
+      const p = projectMeta.find((x) => x.id === t.project);
+      await setCustomer(user?.userType === "external" ? "all" : p && p.customerType !== "internal" ? p.customerCode : "all");
+    }
+    useTaskStore.getState().selectTask(t.id);
+  };
+  // Everyone who is assigned to something in view (plus "Unassigned"), so the filter only offers people who matter here.
+  const userOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of all) for (const p of t.assignees ?? []) m.set(p.id, p.name);
+    return [
+      ...(all.some((t) => !(t.assignees ?? []).length) ? [{ value: NONE, label: "Unassigned" }] : []),
+      ...[...m].sort((x, y) => x[1].localeCompare(y[1])).map(([value, label]) => ({ value, label })),
+    ];
+  }, [all]);
   const create = (status: Status = "todo", date?: string) => {
     if (viewOnly) return;
     setDefaults({ status, date });
@@ -1901,6 +1911,7 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
             Project Dashboard
             <span />
           </h1>
+          <div className="chipsRow">
           <div className="projectChips">
             <button
               className={filters.project === "all" ? "active" : ""}
@@ -1920,13 +1931,33 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
               </button>
             ))}
           </div>
+          <div className="chipsTools">
+          <button className="pill wide reportBtn" onClick={() => setReportOpen(true)}>
+            Report
+          </button>
+          <div className="userFilter">
+            <MultiSelect
+              ariaLabel="Filter by user"
+              placeholder="All users"
+              emptyText="No assignees yet"
+              values={filters.users}
+              onChange={(users) => setFilters({ users })}
+              options={userOptions}
+            />
+          </div>
+          </div>
+          </div>
         </section>
         <ProjectSummary />
         <div className="widgets">
           {/* <MyTasks create={() => create()} /> */}
           <Overview tasks={tasks} />
           {/* <Trend tasks={tasks} /> */}
-          <Progress tasks={tasks} />
+          {showMine && (
+            <MyTasksCard
+              onOpen={(t) => void openMine(t)}
+            />
+          )}
         </div>
         {canBoard && <Board create={(s) => create(s)} />}
         <Calendar create={create} viewOnly={viewOnly} />
@@ -1946,6 +1977,9 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
         onCreated={created}
       />
       <TaskDetailsModal />
+      {reportOpen && (
+        <ReportModal tasks={all} projects={projectMeta} customerName={viewing} onClose={() => setReportOpen(false)} />
+      )}
       {toast && (
         <div className="toast" role="status">
           {toast} <button onClick={() => setToast("")}>Dismiss</button>
@@ -1995,7 +2029,8 @@ function InternalShell() {
   const permissions = useAuthStore((s) => s.user?.permissions ?? []),
     loadCustomers = useTaskStore((s) => s.loadCustomers),
     setCustomer = useTaskStore((s) => s.setCustomer),
-    [requested, go] = usePage(),
+    switching = useTaskStore((s) => s.switching),
+    [requested, go, notFound] = usePage(),
     [menu, setMenu] = useState(false),
     [collapsed, setCollapsed] = useState(() => {
       try {
@@ -2044,8 +2079,16 @@ function InternalShell() {
     if (!useTaskStore.getState().tasks.some((t) => t.id === task.id)) await setCustomer(customerCode ?? "all");
     useTaskStore.getState().selectTask(task.id);
   };
+  // An address that matches nothing gets a plain full-page 404: no header, sidebar or account bar.
+  if (notFound)
+    return (
+      <div className="nfPage">
+        <NotFoundPage />
+      </div>
+    );
   return (
     <div className={"appShell" + (collapsed ? " sideCollapsed" : "")} style={{ "--head-h": headH + "px" } as React.CSSProperties}>
+      {switching && <div className="switchOverlay"><Loader /></div>}
       <Header admin={page !== "dashboard"} onMenu={toggle} />
       <div className="appRow">
         <Sidebar page={page} go={go} open={menu} collapsed={collapsed} onClose={() => setMenu(false)} />
@@ -2056,11 +2099,13 @@ function InternalShell() {
             ) : (
               <main className="adminMain">
                 {page === "mytasks" && <MyTasksPage onOpen={(t, c) => void openTask(t, c)} />}
+                {page === "alltasks" && <AllTasksPage onOpen={(t, c) => void openTask(t, c)} />}
                 {page === "customers" && <CustomersPage onOpen={openCustomer} />}
                 {page === "projects" && <ProjectsPage />}
                 {page === "users" && <UsersPage />}
                 {page === "roles" && <RolesPage />}
-                {page === "mytasks" && <TaskDetailsModal />}
+                {page === "audit" && <AuditPage />}
+                {(page === "mytasks" || page === "alltasks") && <TaskDetailsModal />}
               </main>
             )}
           </ProtectedRoute>
@@ -2070,23 +2115,18 @@ function InternalShell() {
   );
 }
 
-// Customer users: the dashboard plus a "My Tasks" tab (the header's Dashboard / My Tasks switch), no sidebar.
+// Customer users: the dashboard only (no sidebar, no page tabs). Any other address is bounced back to it.
 function ExternalShell() {
-  const [route] = usePage();
+  const [route, , notFound] = usePage();
+  if (notFound)
+    return (
+      <div className="nfPage">
+        <NotFoundPage />
+      </div>
+    );
   return (
     <ProtectedRoute page={route} key={route}>
-      {route !== "mytasks" ? (
-        <Dashboard />
-      ) : (
-        <>
-          <div className="accentStrip" />
-          <Header admin />
-          <main className="adminMain">
-            <MyTasksPage onOpen={(t) => useTaskStore.getState().selectTask(t.id)} />
-            <TaskDetailsModal />
-          </main>
-        </>
-      )}
+      <Dashboard />
     </ProtectedRoute>
   );
 }

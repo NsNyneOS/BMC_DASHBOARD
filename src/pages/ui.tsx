@@ -27,8 +27,8 @@ export function useLoad<T>(load:()=>Promise<T>,deps:unknown[]=[]){
   return{data,error,loading,reload:run};
 }
 
-export function FormModal({title,onClose,onSubmit,busy=false,error='',submitLabel='Save',children}:{
-  title:string;onClose:()=>void;onSubmit:()=>void;busy?:boolean;error?:string;submitLabel?:string;children:ReactNode;
+export function FormModal({title,onClose,onSubmit,busy=false,error='',submitLabel='Save',className='',children}:{
+  className?:string;title:string;onClose:()=>void;onSubmit:()=>void;busy?:boolean;error?:string;submitLabel?:string;children:ReactNode;
 }){
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose()};
@@ -37,7 +37,7 @@ export function FormModal({title,onClose,onSubmit,busy=false,error='',submitLabe
   },[onClose]);
   const submit=(e:FormEvent)=>{e.preventDefault();if(!busy)onSubmit()};
   return <div className="backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-    <div className="modal compactModal adminModal" role="dialog" aria-modal="true" aria-label={title}>
+    <div className={"modal compactModal adminModal "+className} role="dialog" aria-modal="true" aria-label={title}>
       <header><h2>{title}</h2><button type="button" className="icon" onClick={onClose} aria-label="Close"><X/></button></header>
       <form onSubmit={submit}>
         <div className="formGrid">{children}</div>

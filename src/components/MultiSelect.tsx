@@ -4,8 +4,8 @@ import{Check,ChevronDown,Search}from'lucide-react';
 import type{SelectOption}from'./ModernSelect';
 
 // Same look as ModernSelect, but several options can be ticked; the menu stays open while you pick.
-export default function MultiSelect({values,options,onChange,ariaLabel,placeholder='None',emptyText='Nothing to choose',searchable=true,disabled=false}:{
-  values:string[];options:SelectOption[];onChange:(values:string[])=>void;ariaLabel:string;placeholder?:string;emptyText?:string;searchable?:boolean;disabled?:boolean;
+export default function MultiSelect({values,options,onChange,ariaLabel,placeholder='None',emptyText='Nothing to choose',allLabel,searchable=true,disabled=false}:{
+  values:string[];options:SelectOption[];onChange:(values:string[])=>void;ariaLabel:string;placeholder?:string;emptyText?:string;/** Adds an "All ..." row at the top; ticked while nothing specific is chosen (or everything is). */allLabel?:string;searchable?:boolean;disabled?:boolean;
 }){
   const[open,setOpen]=useState(false),[query,setQuery]=useState('');
   const root=useRef<HTMLDivElement>(null),menu=useRef<HTMLDivElement>(null),searchRef=useRef<HTMLInputElement>(null);
@@ -43,6 +43,7 @@ export default function MultiSelect({values,options,onChange,ariaLabel,placehold
     </button>
     {open&&!disabled&&pos&&createPortal(<div ref={menu} id={listId} role="listbox" aria-multiselectable="true" aria-label={ariaLabel} className="modernSelectMenu" onKeyDown={onKey} style={{position:'fixed',zIndex:2000,left:pos.left,width:pos.width,maxHeight:pos.maxHeight,top:pos.up?'auto':pos.top,bottom:pos.up?window.innerHeight-pos.top:'auto'}}>
       {searchable&&<div className="modernSelectSearch"><Search/><input ref={searchRef} value={query} placeholder="Search…" aria-label={`Search ${ariaLabel}`} onChange={e=>setQuery(e.target.value)} onKeyDown={onKey}/></div>}
+      {allLabel&&options.length>0&&!needle&&(()=>{const on=values.length===0||values.length===options.length;return <button type="button" role="option" aria-selected={on} className={on?'modernSelectOption selected allOption':'modernSelectOption allOption'} onClick={e=>{e.stopPropagation();onChange([])}}><span className={'msBox'+(on?' on':'')}>{on&&<Check/>}</span><span className="msLabel">{allLabel}</span></button>})()}
       {options.length===0&&<p className="modernSelectEmpty">{emptyText}</p>}
       {options.length>0&&visible.length===0&&<p className="modernSelectEmpty">No matches</p>}
       {visible.map(o=>{const on=values.includes(o.value);return <button type="button" role="option" aria-selected={on} key={o.value} className={on?'modernSelectOption selected':'modernSelectOption'} onClick={e=>{e.stopPropagation();toggle(o.value)}}>

@@ -16,7 +16,7 @@ export const taskSchema=z.object({
   project:z.string().min(1,'Choose a project'),
   summary:z.string().min(1,'Summary is required').max(120),
   description:z.string(),
-  status:z.enum(['todo','in_progress','testing','in_review','done']),
+  status:z.enum(['todo','in_progress','developing','testing','review','completed','in_review','rework','done']),
   priority:z.enum(['highest','high','medium','low','lowest']),
   startDate:z.string().min(1,'Start date is required'),
   dueDate:z.string().min(1,'Due date is required'),
@@ -36,9 +36,13 @@ type Values=z.infer<typeof taskSchema>;
 const statusOptions=[
   {value:'todo',label:'New'},
   {value:'in_progress',label:'In Progress'},
-  {value:'testing',label:'Testing/Review'},
+  {value:'developing',label:'Developing'},
+  {value:'testing',label:'Testing'},
+  {value:'review',label:'Review'},
+  {value:'completed',label:'Completed'},
   {value:'in_review',label:'Deploying'},
-  {value:'done',label:'Completed'}
+  {value:'rework',label:'Rework'},
+  {value:'done',label:'Finished'}
 ];
 const priorityOptions=[
   {value:'highest',label:'Highest'},

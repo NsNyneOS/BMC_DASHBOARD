@@ -38,6 +38,7 @@ export const api={
   me:()=>request<AuthUser>('/api/auth/me'),
   changePassword:(currentPassword:string,newPassword:string)=>request<void>('/api/auth/change-password',{method:'POST',body:JSON.stringify({currentPassword,newPassword})}),
   tasks:(customer?:string)=>request<Task[]>('/api/tasks'+q(customer)).then(list=>list.map(norm)),
+  allTasks:()=>request<Task[]>('/api/tasks?all=1').then(list=>list.map(norm)),
   myTasks:(kind:'assigned'|'reviewing'='assigned')=>request<Task[]>('/api/tasks?'+(kind==='reviewing'?'reviewer=me':'assignee=me')).then(list=>list.map(norm)),
   projects:(customer?:string)=>request<ProjectMeta[]>('/api/projects'+q(customer)),
   updateProject:(id:string,patch:Partial<Pick<ProjectMeta,'name'|'description'|'color'|'status'|'internalOnly'>&{startDate:string;endDate:string}>)=>request<void>(`/api/projects/${id}`,{method:'PATCH',body:JSON.stringify(patch)}),
@@ -50,6 +51,7 @@ export const api={
   users:()=>request<UserRow[]>('/api/users'),
   createUser:(data:Record<string,unknown>)=>request<UserRow>('/api/users',{method:'POST',body:JSON.stringify(data)}),
   updateUser:(id:string,data:Record<string,unknown>)=>request<UserRow>(`/api/users/${id}`,{method:'PATCH',body:JSON.stringify(data)}),
+  audit:()=>request<AuditEntry[]>('/api/audit'),
   roles:()=>request<Role[]>('/api/roles'),
   createRole:(data:Record<string,unknown>)=>request<Role>('/api/roles',{method:'POST',body:JSON.stringify(data)}),
   updateRole:(id:string,data:Record<string,unknown>)=>request<Role>(`/api/roles/${id}`,{method:'PATCH',body:JSON.stringify(data)}),
@@ -59,3 +61,5 @@ export const api={
   updateTask:(id:string,patch:TaskPatch)=>request<Task>(`/api/tasks/${id}`,{method:'PATCH',body:JSON.stringify(patch)}),
   deleteTask:(id:string)=>request<void>(`/api/tasks/${id}`,{method:'DELETE'})
 };
+
+export interface AuditEntry{id:string;userName:string;action:'create'|'update'|'delete';entity:string;entityId:string;label:string;detail:Record<string,unknown>;createdAt:string}

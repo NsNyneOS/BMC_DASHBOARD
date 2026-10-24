@@ -114,6 +114,7 @@ func New(ctx context.Context) (http.Handler, error) {
 	mux.HandleFunc("PATCH /api/roles/{id}", s.need("role.manage", s.updateRole))
 	mux.HandleFunc("DELETE /api/roles/{id}", s.need("role.manage", s.deleteRole))
 	mux.HandleFunc("GET /api/permissions", s.needAny(s.listPermissions, "user.view", "role.manage"))
+	mux.HandleFunc("GET /api/audit", s.need("audit.view", s.listAudit))
 	mux.HandleFunc("GET /api/assignees", s.need("task.assign", s.listAssignees))
 	mux.HandleFunc("GET /api/tasks", s.auth(s.listTasks))
 	mux.HandleFunc("POST /api/tasks", s.auth(s.createTask))

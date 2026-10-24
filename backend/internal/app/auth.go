@@ -68,7 +68,7 @@ func (s *server) auth(next http.HandlerFunc) http.HandlerFunc {
 			writeErr(w, http.StatusForbidden, "password change required")
 			return
 		}
-		next(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
+		s.audited(u, next, w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))
 	}
 }
 

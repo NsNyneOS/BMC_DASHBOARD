@@ -136,6 +136,10 @@ func (s *server) listTasks(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 403, "you do not have access to My Tasks")
 		return
 	}
+	if q.Get("all") == "1" && u.internal() && !u.can("alltasks.view") {
+		writeErr(w, 403, "you do not have access to All Tasks")
+		return
+	}
 	where, args := taskScope(u, q.Get("customer"), 0)
 	if r.URL.Query().Get("assignee") == "me" { // "My Tasks": only what is assigned to the signed-in user
 		args = append(args, u.ID)
@@ -185,7 +189,7 @@ type taskInput struct {
 }
 
 var (
-	validStatuses   = set("todo", "in_progress", "testing", "in_review", "done")
+	validStatuses   = set("todo", "in_progress", "developing", "testing", "review", "completed", "in_review", "rework", "done")
 	validPriorities = set("highest", "high", "medium", "low", "lowest")
 	validTeams      = set("nyneos", "bmc")
 	validTypes      = set("task", "bug", "story", "epic", "subtask")

@@ -48,7 +48,7 @@ export default function CustomersPage({onOpen}:{onOpen:(code:string)=>void}){
     </div>}
     {data&&owner&&canInternal&&<div className={'card allCustomers'+(current===owner.code?' current':'')}>
       <span className="allIcon"><Building size={20}/></span>
-      <div><strong>{owner.name} · internal projects</strong><p className="muted">NyneOS's own projects (e.g. CRM) — kept separate from the customers above</p></div>
+      <div><strong>{owner.name} · internal projects</strong></div>
       {current===owner.code&&<Badge tone="info">Viewing</Badge>}
       <button className="pill wide" onClick={()=>onOpen(owner.code)}>Open dashboard <ArrowRight size={14}/></button>
     </div>}
@@ -58,10 +58,6 @@ export default function CustomersPage({onOpen}:{onOpen:(code:string)=>void}){
       <Field label="Short name"><input value={form.shortName} onChange={set('shortName')}/></Field>
       <Field label="Status"><ModernSelect ariaLabel="Status" value={form.status} onChange={v=>setForm(f=>({...f,status:v}))} options={[{value:'active',label:'Active'},{value:'inactive',label:'Inactive (users cannot sign in)'}]}/></Field>
       <div className="full logoFieldWrap"><span className="fieldLabel">Customer logo</span><LogoField value={form.logoUrl} name={form.name} onChange={logo=>setForm(f=>({...f,logoUrl:logo}))}/></div>
-      <Field label="Contact name"><input value={form.contactName} onChange={set('contactName')}/></Field>
-      <Field label="Contact email"><input type="email" value={form.contactEmail} onChange={set('contactEmail')}/></Field>
-      <Field label="Contact phone"><input value={form.contactPhone} onChange={set('contactPhone')}/></Field>
-      <Field label="Address" full><textarea value={form.address} onChange={set('address')}/></Field>
     </FormModal>}
   </>;
 }
