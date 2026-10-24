@@ -1,11 +1,12 @@
 import{useState,type FormEvent}from'react';
 import{api}from'../api/client';
 import{useAuthStore}from'../store/useAuthStore';
+import{useAuth}from'../auth/AuthProvider';
 import nyneosLogo from'../../assets/nyneos_logo.png';
 
 // Shown instead of the app while a user is still on the default password.
 export default function ChangePassword(){
-  const user=useAuthStore(s=>s.user),logout=useAuthStore(s=>s.logout),done=useAuthStore(s=>s.passwordChanged);
+  const user=useAuthStore(s=>s.user),{logout}=useAuth(),done=useAuthStore(s=>s.passwordChanged);
   const[current,setCurrent]=useState(''),[next,setNext]=useState(''),[again,setAgain]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const submit=async(e:FormEvent)=>{
     e.preventDefault();

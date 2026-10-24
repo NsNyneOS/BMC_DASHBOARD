@@ -55,8 +55,10 @@ import { useAuthStore, useCan } from "./store/useAuthStore";
 import { useBrand, useClientLabel, useProjectCustomer, useViewingLabel } from "./store/useBrand";
 import { api, type Assignee } from "./api/client";
 import { projectName, projectColor as color } from "./utils/projects";
-import { usePage, type Page } from "./utils/route";
-import Sidebar, { allowedPages } from "./components/Sidebar";
+import { usePage } from "./utils/route";
+import Sidebar from "./components/Sidebar";
+import { useAuth } from "./auth/AuthProvider";
+import { ProtectedRoute, RequireAuth } from "./auth/ProtectedRoute";
 import MyTasksPage from "./pages/MyTasksPage";
 import CustomersPage from "./pages/CustomersPage";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -184,8 +186,7 @@ function Header({
     brand = useBrand();
   const filters = useTaskStore((s) => s.filters),
     setFilters = useTaskStore((s) => s.setFilters),
-    user = useAuthStore((s) => s.user),
-    logout = useAuthStore((s) => s.logout);
+    { user, logout } = useAuth();
   const { toggleMode } = useTheme();
   const [route, goRoute] = usePage(),
     external = user?.userType === "external";
@@ -1954,31 +1955,25 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
   );
 }
 export default function App() {
-  const user = useAuthStore((s) => s.user),
-    checking = useAuthStore((s) => s.checking),
-    restore = useAuthStore((s) => s.restore),
-    logout = useAuthStore((s) => s.logout),
+  return (
+    <RequireAuth>
+      <AppData />
+    </RequireAuth>
+  );
+}
+
+// Signed in and past the password screen: load the data, then show the shell for this kind of user.
+function AppData() {
+  const { user, logout } = useAuth(),
     loadAll = useTaskStore((s) => s.loadAll),
     loaded = useTaskStore((s) => s.loaded),
     [loadError, setLoadError] = useState("");
   useEffect(() => {
-    void restore();
-    const out = () => logout();
-    addEventListener("bmb:unauthorized", out);
-    return () => removeEventListener("bmb:unauthorized", out);
-  }, [restore, logout]);
-  const mustChange = !!user?.mustChangePassword;
-  useEffect(() => {
-    if (user && !mustChange) {
-      setLoadError("");
-      loadAll().catch((e) =>
-        setLoadError(e instanceof Error ? e.message : "Unable to load data"),
-      );
-    }
-  }, [user, mustChange, loadAll]);
-  if (checking) return <Loader screen />;
-  if (!user) return <Login />;
-  if (mustChange) return <ChangePassword />;
+    setLoadError("");
+    loadAll().catch((e) =>
+      setLoadError(e instanceof Error ? e.message : "Unable to load data"),
+    );
+  }, [user?.id, loadAll]);
   if (loadError)
     return (
       <div className="loginPage">
@@ -1993,7 +1988,7 @@ export default function App() {
     );
   if (!loaded) return <Loader screen />;
   // External (customer) users get the plain dashboard; internal NyneOS users get the sidebar workspace.
-  return user.userType === "internal" ? <InternalShell /> : <ExternalShell />;
+  return user?.userType === "internal" ? <InternalShell /> : <ExternalShell />;
 }
 
 function InternalShell() {
@@ -2010,8 +2005,7 @@ function InternalShell() {
       }
     }),
     [headH, setHeadH] = useState(86),
-    allowed = allowedPages(permissions),
-    page: Page = allowed.includes(requested) ? requested : "dashboard";
+    page = requested;
   useEffect(() => {
     if (permissions.includes("customer.view")) void loadCustomers().catch(() => undefined);
   }, [permissions, loadCustomers]);
@@ -2056,18 +2050,20 @@ function InternalShell() {
       <div className="appRow">
         <Sidebar page={page} go={go} open={menu} collapsed={collapsed} onClose={() => setMenu(false)} />
         <div className="appBody">
-          {page === "dashboard" ? (
-            <Dashboard embedded />
-          ) : (
-            <main className="adminMain">
-              {page === "mytasks" && <MyTasksPage onOpen={(t, c) => void openTask(t, c)} />}
-              {page === "customers" && <CustomersPage onOpen={openCustomer} />}
-              {page === "projects" && <ProjectsPage />}
-              {page === "users" && <UsersPage />}
-              {page === "roles" && <RolesPage />}
-              {page === "mytasks" && <TaskDetailsModal />}
-            </main>
-          )}
+          <ProtectedRoute page={page} key={page}>
+            {page === "dashboard" ? (
+              <Dashboard embedded />
+            ) : (
+              <main className="adminMain">
+                {page === "mytasks" && <MyTasksPage onOpen={(t, c) => void openTask(t, c)} />}
+                {page === "customers" && <CustomersPage onOpen={openCustomer} />}
+                {page === "projects" && <ProjectsPage />}
+                {page === "users" && <UsersPage />}
+                {page === "roles" && <RolesPage />}
+                {page === "mytasks" && <TaskDetailsModal />}
+              </main>
+            )}
+          </ProtectedRoute>
         </div>
       </div>
     </div>
@@ -2077,15 +2073,20 @@ function InternalShell() {
 // Customer users: the dashboard plus a "My Tasks" tab (the header's Dashboard / My Tasks switch), no sidebar.
 function ExternalShell() {
   const [route] = usePage();
-  if (route !== "mytasks") return <Dashboard />;
   return (
-    <>
-      <div className="accentStrip" />
-      <Header admin />
-      <main className="adminMain">
-        <MyTasksPage onOpen={(t) => useTaskStore.getState().selectTask(t.id)} />
-        <TaskDetailsModal />
-      </main>
-    </>
+    <ProtectedRoute page={route} key={route}>
+      {route !== "mytasks" ? (
+        <Dashboard />
+      ) : (
+        <>
+          <div className="accentStrip" />
+          <Header admin />
+          <main className="adminMain">
+            <MyTasksPage onOpen={(t) => useTaskStore.getState().selectTask(t.id)} />
+            <TaskDetailsModal />
+          </main>
+        </>
+      )}
+    </ProtectedRoute>
   );
 }

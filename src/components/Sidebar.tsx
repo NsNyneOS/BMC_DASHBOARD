@@ -1,22 +1,21 @@
 import{Building2,FolderKanban,LayoutDashboard,ListChecks,ShieldCheck,Users,X,type LucideIcon}from'lucide-react';
 import{useAuthStore}from'../store/useAuthStore';
-import type{Page}from'../utils/route';
+import{canAccess,type Page}from'../utils/route';
 
 // Items are shown only when the user holds one of the permissions (internal roles get them; external roles do not).
-const items:{page:Page;label:string;icon:LucideIcon;any:string[]}[]=[
-  {page:'dashboard',label:'Dashboard',icon:LayoutDashboard,any:['dashboard.view']},
-  {page:'mytasks',label:'My Tasks',icon:ListChecks,any:['mytasks.view']},
-  {page:'customers',label:'Customers',icon:Building2,any:['customer.view']},
-  {page:'projects',label:'Projects',icon:FolderKanban,any:['project.manage']},
-  {page:'users',label:'Users & Access',icon:Users,any:['user.view']},
-  {page:'roles',label:'Roles & Permissions',icon:ShieldCheck,any:['role.manage','user.view']}
+const items:{page:Page;label:string;icon:LucideIcon}[]=[
+  {page:'dashboard',label:'Dashboard',icon:LayoutDashboard},
+  {page:'mytasks',label:'My Tasks',icon:ListChecks},
+  {page:'customers',label:'Customers',icon:Building2},
+  {page:'projects',label:'Projects',icon:FolderKanban},
+  {page:'users',label:'Users & Access',icon:Users},
+  {page:'roles',label:'Roles & Permissions',icon:ShieldCheck}
 ];
 
-export const allowedPages=(permissions:string[]):Page[]=>items.filter(i=>i.any.some(p=>permissions.includes(p))).map(i=>i.page);
 
 export default function Sidebar({page,go,open,collapsed,onClose}:{page:Page;go:(p:Page)=>void;open:boolean;collapsed:boolean;onClose:()=>void}){
-  const permissions=useAuthStore(s=>s.user?.permissions??[]);
-  const visible=items.filter(i=>i.any.some(p=>permissions.includes(p)));
+  const user=useAuthStore(s=>s.user);
+  const visible=items.filter(i=>canAccess(user,i.page));
   return <>
     {open&&<button className="sideShade" aria-label="Close menu" onClick={onClose}/>}
     <aside className={'sidebar'+(open?' open':'')+(collapsed?' collapsed':'')} aria-label="Sidebar">
