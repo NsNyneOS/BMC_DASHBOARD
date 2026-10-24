@@ -72,7 +72,7 @@ func New(ctx context.Context) (http.Handler, error) {
 		User:     url.UserPassword(os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD")),
 		Host:     fmt.Sprintf("%s:%s", os.Getenv("DB_HOST"), env("DB_PORT", "5432")),
 		Path:     env("DB_NAME", "postgres"),
-		RawQuery: "sslmode=require",
+		RawQuery: "sslmode=" + env("DB_SSLMODE", "require"),
 	}).String()
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -98,8 +98,23 @@ func New(ctx context.Context) (http.Handler, error) {
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("POST /api/auth/login", s.login)
 	mux.HandleFunc("GET /api/auth/me", s.auth(s.me))
+	mux.HandleFunc("POST /api/auth/change-password", s.auth(s.changePassword))
 	mux.HandleFunc("GET /api/projects", s.auth(s.listProjects))
-	mux.HandleFunc("PATCH /api/projects/{id}", s.auth(s.updateProject))
+	mux.HandleFunc("POST /api/projects", s.need("project.manage", s.createProject))
+	mux.HandleFunc("PATCH /api/projects/{id}", s.need("project.manage", s.updateProject))
+	mux.HandleFunc("GET /api/owner", s.needAny(s.getOwner, "customer.view", "project.manage"))
+	mux.HandleFunc("GET /api/customers", s.need("customer.view", s.listCustomers))
+	mux.HandleFunc("POST /api/customers", s.need("customer.manage", s.createCustomer))
+	mux.HandleFunc("PATCH /api/customers/{id}", s.need("customer.manage", s.updateCustomer))
+	mux.HandleFunc("GET /api/users", s.need("user.view", s.listUsers))
+	mux.HandleFunc("POST /api/users", s.need("user.manage", s.createUser))
+	mux.HandleFunc("PATCH /api/users/{id}", s.need("user.manage", s.updateUser))
+	mux.HandleFunc("GET /api/roles", s.needAny(s.listRoles, "user.view", "role.manage"))
+	mux.HandleFunc("POST /api/roles", s.need("role.manage", s.createRole))
+	mux.HandleFunc("PATCH /api/roles/{id}", s.need("role.manage", s.updateRole))
+	mux.HandleFunc("DELETE /api/roles/{id}", s.need("role.manage", s.deleteRole))
+	mux.HandleFunc("GET /api/permissions", s.needAny(s.listPermissions, "user.view", "role.manage"))
+	mux.HandleFunc("GET /api/assignees", s.need("task.assign", s.listAssignees))
 	mux.HandleFunc("GET /api/tasks", s.auth(s.listTasks))
 	mux.HandleFunc("POST /api/tasks", s.auth(s.createTask))
 	mux.HandleFunc("PATCH /api/tasks/{id}", s.auth(s.updateTask))
