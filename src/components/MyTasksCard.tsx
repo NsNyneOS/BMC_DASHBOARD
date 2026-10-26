@@ -48,8 +48,8 @@ export default function MyTasksCard({onOpen}:{onOpen:(task:Task)=>void}){
     {mine.loading&&!mine.data?<Loader/>:<ul className="mtList">
       {visible.map(t=><li key={t.id}><button className="mtRow" onClick={()=>onOpen(t)}>
         <span className="mtDot" style={{background:projectColor(t.project)}}/>
-        <span className="mtMain"><strong>{t.summary}</strong><small>{t.key} · {projectName(t.project)} · {statusLabel[t.status]}</small></span>
-        <span className="mtMeta"><span className={'badge '+priorityTone[t.priority]}>{priorityLabel[t.priority]}</span><em className={t.dueDate&&t.dueDate<today?'overdue':''}>{t.dueDate?format(new Date(`${t.dueDate}T12:00:00`),'MMM d'):'No date'}</em></span>
+        <span className="mtMain"><strong>{t.summary}</strong><small>{t.description||'No description'}</small></span>
+        <span className="mtMeta"><span className="mtProject">{t.key} · {projectName(t.project)} · {statusLabel[t.status]}</span><span className={'badge '+priorityTone[t.priority]}>{priorityLabel[t.priority]}</span><em className={t.dueDate&&t.dueDate<today?'overdue':''}>{t.dueDate?format(new Date(`${t.dueDate}T12:00:00`),'MMM d'):'No date'}</em></span>
       </button></li>)}
       {list.length===0&&<li className="mtEmpty">{tabs.find(x=>x.key===tab)!.empty}</li>}
     </ul>}

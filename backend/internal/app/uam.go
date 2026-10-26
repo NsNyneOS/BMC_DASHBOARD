@@ -398,7 +398,7 @@ func (s *server) listPermissions(w http.ResponseWriter, r *http.Request) {
 // Customer (external) roles may only ever hold Board, Project and Task permissions, plus the always-on dashboard
 // views. Customer, user and role management, and internal-only project access, are NyneOS-only.
 var externalAllowed = set(
-	"dashboard.view", "calendar.view", "alerts.view",
+	"dashboard.view", "calendar.view", "alerts.view", "today.view",
 	"board.view", "board.manage",
 	"project.manage",
 	"task.create", "task.edit", "task.delete", "task.assign", "task.dependencies.edit", "task.visibility.manage", "task.team.manage",

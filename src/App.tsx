@@ -81,6 +81,8 @@ import ModernSelect from "./components/ModernSelect";
 import MultiSelect from "./components/MultiSelect";
 import ReportModal from "./components/ReportModal";
 import MyTasksCard from "./components/MyTasksCard";
+import TodayActivity from "./components/TodayActivity";
+import ActivityCards from "./components/ActivityCards";
 import ConfirmDialog from "./components/ConfirmDialog";
 import bombayMercantileLogo from "../assets/bombay_mercantile_bank_logo.png";
 import nyneosLogo from "../assets/nyneos_logo.png";
@@ -258,7 +260,7 @@ function Header({
           <Settings />
         </button>
         {!admin && canBoard && (
-          <nav className="ranges">
+          <nav className="ranges pageJump">
             {(["board", "calendar"] as const)
               .filter((page) => page !== "board" || user?.canManageBoard)
               .map((page) => (
@@ -514,7 +516,7 @@ function ProjectSummary() {
           }}
         >
           <div
-            className="modal summaryModal"
+            className={"modal summaryModal" + (open.view === "activities" ? " wide" : "")}
             role="dialog"
             aria-modal="true"
             aria-label={`${projectName(open.project)} ${open.view}`}
@@ -573,36 +575,12 @@ function ProjectSummary() {
                   <p className="eyebrow">No alerts for this project.</p>
                 )
               ) : (
-                statuses.map((st) => {
-                  const items = current.list
-                    .filter((t) => t.status === st)
-                    .sort((a, b) => a.order - b.order);
-                  return (
-                    <div className="activityGroup" key={st}>
-                      <h3>
-                        {statusName[st]}
-                        <span>{items.length}</span>
-                      </h3>
-                      {items.length ? (
-                        items.map((t) => (
-                          <button
-                            className="activityRow"
-                            key={t.id}
-                            onClick={() => openTask(t.key)}
-                          >
-                            <span>{t.summary}</span>
-                            <span className={isOver(t) ? "overdue" : ""}>
-                              <Clock3 />
-                              {due(t.dueDate)}
-                            </span>
-                          </button>
-                        ))
-                      ) : (
-                        <p className="eyebrow">No activities</p>
-                      )}
-                    </div>
-                  );
-                })
+                <ActivityCards
+                  tasks={current.list}
+                  statuses={statuses}
+                  statusName={statusName}
+                  onOpen={openTask}
+                />
               )}
             </div>
           </div>
@@ -1867,6 +1845,7 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
     }),
     { user, can } = useAuth(),
     showMine = user?.userType === "external" || can("mytasks.view"),
+    showToday = can("today.view"),
     setCustomer = useTaskStore((s) => s.setCustomer),
     [reportOpen, setReportOpen] = useState(false),
     projectMeta = useTaskStore((s) => s.projects);
@@ -1962,6 +1941,7 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
           </div>
           </div>
         </section>
+        {showToday && <TodayActivity tasks={tasks} onOpen={(t) => void openMine(t)} />}
         <ProjectSummary />
         <div className="widgets">
           {/* <MyTasks create={() => create()} /> */}

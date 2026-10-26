@@ -27,8 +27,8 @@ export function useLoad<T>(load:()=>Promise<T>,deps:unknown[]=[]){
   return{data,error,loading,reload:run};
 }
 
-export function FormModal({title,onClose,onSubmit,busy=false,error='',submitLabel='Save',className='',children}:{
-  className?:string;title:string;onClose:()=>void;onSubmit:()=>void;busy?:boolean;error?:string;submitLabel?:string;children:ReactNode;
+export function FormModal({title,onClose,onSubmit,busy=false,error='',submitLabel='Save',className='',hideCancel=false,children}:{
+  className?:string;hideCancel?:boolean;title:string;onClose:()=>void;onSubmit:()=>void;busy?:boolean;error?:string;submitLabel?:string;children:ReactNode;
 }){
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose()};
@@ -43,7 +43,7 @@ export function FormModal({title,onClose,onSubmit,busy=false,error='',submitLabe
         <div className="formGrid">{children}</div>
         {error&&<p className="loginError formError" role="alert">{error}</p>}
         <footer className="simpleFooter">
-          <button type="button" className="pill" onClick={onClose}>Cancel</button>
+          {!hideCancel&&<button type="button" className="pill" onClick={onClose}>Cancel</button>}
           <button className="primary" disabled={busy}>{busy?'Saving…':submitLabel}</button>
         </footer>
       </form>

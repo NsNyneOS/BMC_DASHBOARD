@@ -47,9 +47,9 @@ export default function MyTasksPage({onOpen}:{onOpen:(task:Task,customerCode:str
   const rows=useMemo(()=>current.filter(t=>inRange(t,range)),[current,range]);
   const meta=useMemo(()=>new Map((projects.data??[]).map(p=>[p.id,p])),[projects.data]);
   const columns:Column<Task>[]=[
-    {key:'key',label:'Task',sort:t=>t.key,csv:t=>`${t.key} ${t.summary}`,cell:t=><><strong>{t.key}</strong> <span>{t.summary}</span></>},
+    {key:'key',label:'Task',sort:t=>t.summary,csv:t=>`${t.key} ${t.summary}`,cell:t=><strong>{t.summary}</strong>},
     {key:'description',label:'Summary',sort:t=>t.description??'',csv:t=>t.description??'',cell:t=>t.description?<span className="cellClamp" title={t.description}>{t.description}</span>:'—'},
-    {key:'project',label:'Project',sort:t=>meta.get(t.project)?.name??t.project,csv:t=>`${meta.get(t.project)?.name??t.project} (${meta.get(t.project)?.customerName??''})`,cell:t=>{const p=meta.get(t.project);return <><span className="dot" style={{background:p?.color??'var(--accent)'}}/> {p?.name??t.project}{p&&<span className="muted"> · {p.customerType==='internal'?'NyneOS':p.customerName}</span>}</>}},
+    {key:'project',label:'Project',sort:t=>meta.get(t.project)?.name??t.project,csv:t=>`${meta.get(t.project)?.name??t.project} (${meta.get(t.project)?.customerName??''})`,cell:t=>{const p=meta.get(t.project);return <><span className="dot" style={{background:p?.color??'var(--accent)'}}/> {p?.name??t.project}</>}},
     {key:'status',label:'Status',sort:t=>statusRank[t.status],csv:t=>statusLabel[t.status],cell:t=><Badge tone={statusTone[t.status]}>{statusLabel[t.status]}</Badge>},
     {key:'priority',label:'Priority',sort:t=>priorityRank[t.priority],csv:t=>priorityLabel[t.priority],cell:t=><Badge tone={priorityTone[t.priority]}>{priorityLabel[t.priority]}</Badge>},
     view==='assigned'
