@@ -29,3 +29,20 @@ describe('todayActivity',()=>{
     expect(q.started.total+q.completed.total).toBe(0);expect(q.started.byProject).toEqual([]);
   });
 });
+
+import{assignedTo,deadlinesSoon}from'./today';
+describe('assignedTo / deadlinesSoon',()=>{
+  const me={id:'u1',name:'Me',initials:'M',userType:'internal' as const};
+  const list=[
+    mk({key:'A-1',assignees:[me],dueDate:'2026-10-30'}),
+    mk({key:'A-2',assignees:[me],dueDate:'2026-10-27'}),
+    mk({key:'A-3',assignees:[me],status:'done',dueDate:'2026-10-27'}),
+    mk({key:'A-4',dueDate:'2026-10-28'}),
+    mk({key:'A-5',dueDate:'2026-10-25'}),
+    mk({key:'A-6',dueDate:'2026-11-05'}),
+  ];
+  it('lists only my open tasks, soonest first',()=>{expect(assignedTo(list,'u1').map(t=>t.key)).toEqual(['A-2','A-1']);expect(assignedTo(list,'zzz')).toEqual([])});
+  it('finds open tasks due from today to 3 days ahead, not late or later ones',()=>{
+    expect(deadlinesSoon(list,3,new Date(2026,9,26)).map(t=>t.key)).toEqual(['A-2','A-4']);
+  });
+});

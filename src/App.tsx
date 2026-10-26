@@ -81,8 +81,10 @@ import ModernSelect from "./components/ModernSelect";
 import MultiSelect from "./components/MultiSelect";
 import ReportModal from "./components/ReportModal";
 import MyTasksCard from "./components/MyTasksCard";
-import TodayActivity from "./components/TodayActivity";
+import TaskGroupsModal from "./components/TaskGroupsModal";
 import ActivityCards from "./components/ActivityCards";
+import AlertsCarousel, { type AlertItem } from "./components/AlertsCarousel";
+import { assignedTo, deadlinesSoon, groupByProject, todayActivity } from "./utils/today";
 import ConfirmDialog from "./components/ConfirmDialog";
 import bombayMercantileLogo from "../assets/bombay_mercantile_bank_logo.png";
 import nyneosLogo from "../assets/nyneos_logo.png";
@@ -424,6 +426,72 @@ function ProjectSummary() {
         select(t.id);
       }
     };
+  // The alerts carousel: each project's own alerts plus four ready-made ones (starting today, completed today, assigned to you,
+  // deadlines coming up). Most severe first.
+  const { user: me, can } = useAuth(),
+    canAlerts = can("alerts.view"),
+    canToday = can("today.view"),
+    [listOf, setListOf] = useState<{ alert: AlertItem; project?: string } | null>(null),
+    alertItems = useMemo<AlertItem[]>(() => {
+      const rank: Record<string, number> = { critical: 0, warning: 1, info: 2, success: 3 };
+      const inView = tasks.filter((t) => shown.includes(t.project));
+      const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+      const global = (
+        id: string,
+        label: string,
+        severity: string,
+        message: string,
+        meta: string,
+        list: Task[],
+        advice: string,
+      ): AlertItem => ({
+        id,
+        scope: "global",
+        project: "",
+        projectName: label,
+        color: "var(--accent)",
+        meta,
+        severity,
+        message,
+        tasks: list,
+        advice,
+        breakdown: groupByProject(list).map((g) => ({ code: g.code, name: projectName(g.code), color: color(g.code), count: g.count })),
+      });
+      const premade: AlertItem[] = [];
+      const day = format(new Date(), "EEE, d MMM");
+      if (canToday) {
+        const t = todayActivity(inView);
+        const started = inView.filter((x) => t.started.byProject.some((p) => p.tasks.includes(x)));
+        const done = inView.filter((x) => t.completed.byProject.some((p) => p.tasks.includes(x)));
+        if (started.length)
+          premade.push(global("today-start", "Today", "info", `${plural(started.length, "task")} starting today in ${plural(t.started.byProject.length, "project")}`, day, started, "Make sure each of these has an owner and is ready to begin."));
+        if (done.length)
+          premade.push(global("today-done", "Today", "success", `${plural(done.length, "task")} completed today`, day, done, "Nice progress. Check whether follow-up work needs to start."));
+      }
+      if (me) {
+        const mine = assignedTo(inView, me.id);
+        if (mine.length)
+          premade.push(global("assigned", "Assigned to you", "info", `${plural(mine.length, "open task")} assigned to you`, "Soonest deadline first", mine, "These are waiting on you. Start with the one due soonest."));
+      }
+      const soon = deadlinesSoon(inView, 3);
+      if (soon.length)
+        premade.push(global("deadlines", "Deadlines", "warning", `${plural(soon.length, "task")} due in the next 3 days`, "Today to " + format(addDays(new Date(), 3), "d MMM"), soon, "Confirm these will finish on time, or move the dates early."));
+      const projectAlerts = rows
+        .filter((r) => shown.includes(r.project))
+        .flatMap((r) =>
+          r.alerts.map((a) => ({
+            id: r.project + ":" + a.id,
+            project: r.project,
+            projectName: projectName(r.project),
+            color: color(r.project),
+            meta: `${r.percent}% complete${r.start ? " · " + due(r.start) + (r.end && r.end !== r.start ? " – " + due(r.end) : "") : ""}`,
+            severity: a.severity,
+            message: a.message,
+            tasks: a.taskKeys.map((k) => tasks.find((x) => x.key === k)).filter((t): t is Task => !!t),
+          })),
+        );
+      return [...projectAlerts, ...premade].sort((x, y) => (rank[x.severity] ?? 9) - (rank[y.severity] ?? 9));
+    }, [rows, shown, tasks, me, canToday]);
   useEffect(() => {
     const m = open ? meta.find((x) => x.id === open.project) : null;
     setDraft({ start: m?.startDate || "", end: m?.endDate || "" });
@@ -455,6 +523,29 @@ function ProjectSummary() {
   }, [open]);
   return (
     <>
+      {(canAlerts || canToday) && (
+        <AlertsCarousel
+          alerts={canAlerts ? alertItems : alertItems.filter((a) => a.scope === "global")}
+          onViewTasks={(alert, project) => setListOf({ alert, project })}
+        />
+      )}
+      {listOf && (
+        <TaskGroupsModal
+          title={listOf.alert.message}
+          tasks={listOf.alert.tasks}
+          alert={listOf.alert}
+          initialProject={listOf.project}
+          onOpenProject={(project, view) => {
+            setListOf(null);
+            setOpen({ project, view });
+          }}
+          onClose={() => setListOf(null)}
+          onOpen={(t) => {
+            setListOf(null);
+            openTask(t.key);
+          }}
+        />
+      )}
       <section className="summaryGrid" aria-label="Project summary">
         {rows.filter((r) => shown.includes(r.project)).map((r) => (
           <div
@@ -1845,7 +1936,6 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
     }),
     { user, can } = useAuth(),
     showMine = user?.userType === "external" || can("mytasks.view"),
-    showToday = can("today.view"),
     setCustomer = useTaskStore((s) => s.setCustomer),
     [reportOpen, setReportOpen] = useState(false),
     projectMeta = useTaskStore((s) => s.projects);
@@ -1941,7 +2031,6 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
           </div>
           </div>
         </section>
-        {showToday && <TodayActivity tasks={tasks} onOpen={(t) => void openMine(t)} />}
         <ProjectSummary />
         <div className="widgets">
           {/* <MyTasks create={() => create()} /> */}

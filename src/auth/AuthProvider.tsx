@@ -21,7 +21,7 @@ const TOKEN_KEY='bmb_token_v1';
 // is cleared in another tab, and clears the URL on sign-out so the next person does not land on the last page.
 export function AuthProvider({children}:{children:ReactNode}){
   const user=useAuthStore(s=>s.user),checking=useAuthStore(s=>s.checking),busy=useAuthStore(s=>s.busy),error=useAuthStore(s=>s.error),
-    login=useAuthStore(s=>s.login),storeLogout=useAuthStore(s=>s.logout),restore=useAuthStore(s=>s.restore);
+    login=useAuthStore(s=>s.login),storeLogout=useAuthStore(s=>s.logout),restore=useAuthStore(s=>s.restore),refresh=useAuthStore(s=>s.refresh);
   const logout=useMemo(()=>()=>{storeLogout();try{history.replaceState(null,'',location.pathname+location.search)}catch{/* ignore */}},[storeLogout]);
 
   useEffect(()=>{void restore()},[restore]);
@@ -32,6 +32,16 @@ export function AuthProvider({children}:{children:ReactNode}){
     addEventListener('storage',storage);
     return()=>{removeEventListener('bmb:unauthorized',unauthorized);removeEventListener('storage',storage)};
   },[logout]);
+
+  // Permissions are granted on the server while a page may stay open for hours: re-read them when the tab is shown again,
+  // and every few minutes, so a new permission appears without signing out. (Throttled to once per 30 s.)
+  useEffect(()=>{
+    let last=Date.now();
+    const poke=()=>{if(document.visibilityState==='hidden'||Date.now()-last<30_000)return;last=Date.now();void refresh()};
+    const timer=setInterval(poke,5*60_000);
+    addEventListener('focus',poke);document.addEventListener('visibilitychange',poke);
+    return()=>{clearInterval(timer);removeEventListener('focus',poke);document.removeEventListener('visibilitychange',poke)};
+  },[refresh]);
 
   const value=useMemo<AuthContextValue>(()=>({
     user,busy,error,login,logout,

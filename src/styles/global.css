@@ -2039,23 +2039,7 @@ td strong+.badge{margin-left:14px}
 @media(min-width:701px){.ranges.pageJump{display:none}}
 .mtMeta .badge{order:-1}
 
-/* Dashboard: "Started today" / "Completed today" */
-.todayGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:18px}
-.todayCard{display:flex;flex-direction:column;gap:14px;padding:20px 22px;text-align:left;width:100%;border-radius:24px;cursor:pointer;transition:box-shadow .15s}
-.todayCard:hover{box-shadow:0 10px 30px color-mix(in srgb,var(--accent) 16%,transparent)}
-.todayHead{display:flex;align-items:center;gap:12px}
-.todayIcon{display:grid;place-items:center;width:40px;height:40px;border-radius:14px;background:var(--gradient);color:#fff;flex:none}
-.todayCard.completed .todayIcon{background:linear-gradient(135deg,#0e7868,#08783e)}
-.todayTitle{flex:1;font-size:16px;font-weight:700}
-.todayTotal{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1}
-.todayRows{list-style:none;margin:0;padding:0;display:grid;gap:9px;max-height:176px;overflow-y:auto}
-.todayRows li{display:grid;grid-template-columns:minmax(90px,150px) 1fr 28px;align-items:center;gap:12px;font-size:13px}
-.todayName{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.todayName i,.todayDetail h3 i{flex:none;width:9px;height:9px;border-radius:50%}
-.todayBar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
-.todayBar i{display:block;height:100%;border-radius:99px}
-.todayRows b{text-align:right}
-.todayEmpty{margin:0;color:var(--muted);font-size:14px}
+/* Task list popup behind an alert */
 .todayDetail{display:grid;gap:18px}
 .todayDetail h3{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:15px}
 .todayDetail h3 span{margin-left:auto;font-size:12px;color:var(--muted)}
@@ -2064,7 +2048,6 @@ td strong+.badge{margin-left:14px}
 .todayDetail li button:hover{background:var(--surface-2)}
 .todayDetail li strong{font-size:13px}.todayDetail li span{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .todayDetail li small{grid-column:2;color:var(--muted);font-size:12px}
-@media(max-width:700px){.todayGrid{grid-template-columns:1fr}.todayRows li{grid-template-columns:minmax(70px,110px) 1fr 24px}}
 
 /* Project "Activities" popup: stage chips + task cards */
 .summaryModal.wide{width:min(1040px,100%)}
@@ -2092,3 +2075,94 @@ td strong+.badge{margin-left:14px}
 .actChips{width:auto;max-width:100%}
 .actTitle{overflow-wrap:anywhere}
 @media(max-width:700px){.actGrid{grid-template-columns:minmax(0,1fr)}}
+
+/* Dashboard "Alerts" carousel */
+.alertPanel{margin-bottom:18px;display:grid;gap:14px;padding:22px 24px;border-radius:24px}
+.alertHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.alertHead h2{margin:0;font-size:20px;font-weight:600;letter-spacing:-.02em}
+.alertCaption{font-size:12px;color:var(--muted)}
+.alertChips{flex-wrap:wrap;width:max-content;max-width:100%;overflow:visible;border-radius:22px}
+.alertEmpty{margin:6px 0 4px;color:var(--muted);font-size:14px}
+.alertCard{display:grid;gap:10px;padding:18px;border:1px solid var(--border);border-radius:20px;background:color-mix(in srgb,var(--surface-2) 55%,var(--surface))}
+.alertPills{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.alertPills .badge{min-height:24px;padding:0 12px;font-size:12px}
+.alertProject{display:inline-flex;align-items:center;gap:7px;padding:3px 11px;border-radius:99px;background:var(--surface);border:1px solid var(--border);font-size:12px;font-weight:600}
+.alertProject i{width:8px;height:8px;border-radius:50%}
+.alertCount{font-size:12px;color:var(--muted)}
+.alertCard h3{margin:2px 0 0;font-size:18px;font-weight:600;letter-spacing:-.01em}
+.alertMeta{margin:0;color:var(--muted);font-size:13px}
+.alertCols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px;margin-top:4px}
+.alertBox{padding:14px;border:1px solid var(--border);border-radius:16px;background:var(--surface);min-width:0}
+.alertBox h4{margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.alertNote{margin:0 0 12px;font-size:14px;line-height:1.55}
+.alertEvidence{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.alertEvidence button{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);text-align:left;font-size:13px}
+.alertEvidence button:hover{background:var(--surface-2)}
+.alertEvidence strong{font-size:12px}
+.alertEvidence span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alertEvidence em{font-style:normal;font-size:12px;color:var(--muted)}
+.alertMore{padding:2px 4px;font-size:12px;color:var(--muted)}
+.alertActions{display:flex;flex-wrap:wrap;gap:8px}
+.alertActions .primary{height:40px;padding:0 18px;font-size:13px}
+.alertActions .pill.wide{height:40px;font-size:13px}
+.alertNav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:2px}
+.alertNavLeft{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.alertNavLeft .icon:disabled{opacity:.4;cursor:not-allowed}
+.alertDots{display:inline-flex;gap:5px;margin-left:6px;flex-wrap:wrap}
+.alertDots button{display:grid;place-items:center;min-width:28px;height:28px;padding:0 6px;border:1px solid var(--border);border-radius:99px;background:var(--surface);font-size:12px;font-weight:600}
+.alertDots button.on{background:var(--active);color:var(--active-text);border-color:transparent}
+.alertPin.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+@media(max-width:800px){.alertCols{grid-template-columns:1fr}.alertPanel{padding:16px}}
+.alertChips{width:auto}
+.alertPanel,.alertCard,.alertBox{min-width:0}
+.alertCard h3{overflow-wrap:anywhere}
+
+/* Ready-made alerts: per-project breakdown bars */
+.alertBreakdown{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.alertBreakdown li{display:grid;grid-template-columns:minmax(90px,170px) 1fr 30px;align-items:center;gap:12px;font-size:13px}
+.alertBName{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alertBName i{flex:none;width:9px;height:9px;border-radius:50%}
+.alertBBar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.alertBBar i{display:block;height:100%;border-radius:99px}
+.alertBreakdown b{text-align:right}
+
+/* Alert overview tiles + the drill-down popup */
+.alertStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.alertStat{display:grid;gap:2px;padding:12px 14px;border-radius:14px;background:var(--surface-2)}
+.alertStat b{font-size:22px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
+.alertStat span{font-size:12px;color:var(--muted)}
+.alertStat.warn b{color:var(--danger)}
+.alertTiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:12px}
+.alertTile{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border:1px solid var(--border);border-left:4px solid var(--tile);border-radius:14px;background:var(--surface);text-align:left;font-size:13px}
+.alertTile:hover{background:var(--surface-2);border-color:var(--tile)}
+.alertTileName{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alertTileName i{display:none}
+.alertTile b{font-size:18px;font-weight:600}
+.todayModal{width:min(1040px,100%)}
+.todayModal .actChips{margin-bottom:4px}
+.drillStatus{align-self:flex-start;padding:3px 10px;border-radius:99px;background:var(--surface-2);font-size:11px;font-weight:600;color:var(--muted)}
+@media(max-width:800px){.alertStats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* Alert header: title left, small severity filter right */
+.alertHeadText{display:grid;gap:2px}
+.alertHead .alertChips{padding:3px;margin-left:auto}
+.alertChips button,.drillBar .rangeTabs button{height:30px;padding:0 12px;font-size:13px;gap:6px}
+.alertChips button b{min-width:20px;height:20px;font-size:11px}
+.drillBar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.drillList{display:grid;gap:10px}
+.drillRow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;width:100%;padding:14px 18px;border:1px solid var(--border);border-radius:18px;background:var(--surface);text-align:left}
+.drillRow:hover{background:var(--surface-2)}
+.drillDot{width:10px;height:10px;border-radius:50%}
+.drillMain{display:grid;gap:3px;min-width:0}
+.drillMain strong{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drillMain small{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drillSide{display:grid;justify-items:end;gap:4px;font-size:13px;color:var(--muted)}
+.drillDue.overdue{color:var(--danger);font-weight:600}
+@media(max-width:640px){.drillRow{grid-template-columns:auto minmax(0,1fr)}.drillSide{grid-column:2;justify-items:start}.alertHead .alertChips{margin-left:0}}
+
+/* Alert as a clickable row; pagination sits outside the card */
+.alertRow{margin-top:4px}
+.alertRow h3{margin:0;font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alertNav{margin:0}
+.drillMeta{font-size:13px}
+
+.alertNav{justify-content:center}
