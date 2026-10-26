@@ -1,3 +1,4 @@
+import{toast}from'../store/useToast';
 import{useEffect,useMemo,useState}from'react';
 import{Plus,Trash2}from'lucide-react';
 import{api,type Permission}from'../api/client';
@@ -21,15 +22,15 @@ export default function RolesPage(){
   const toggle=(code:string)=>{setSaved(false);setDraft(d=>d.includes(code)?d.filter(c=>c!==code):[...d,code])};
   const save=async()=>{
     if(!role)return;setBusy(true);setError('');
-    try{await api.updateRole(role.id,{permissions:draft});setSaved(true);roles.reload()}catch(e){setError(errMsg(e))}finally{setBusy(false)}
+    try{await api.updateRole(role.id,{permissions:draft});setSaved(true);toast('Permissions saved');roles.reload()}catch(e){setError(errMsg(e))}finally{setBusy(false)}
   };
   const remove=async()=>{
     if(!role||!confirm(`Delete the role "${role.name}"?`))return;
-    try{await api.deleteRole(role.id);setSelected('');roles.reload()}catch(e){setError(errMsg(e))}
+    try{await api.deleteRole(role.id);toast('Role deleted');setSelected('');roles.reload()}catch(e){setError(errMsg(e))}
   };
   const create=async()=>{
     setBusy(true);setFormError('');
-    try{const r=await api.createRole({...form,permissions:[]});setCreating(false);setSelected(r.id);roles.reload()}catch(e){setFormError(errMsg(e))}finally{setBusy(false)}
+    try{const r=await api.createRole({...form,permissions:[]});toast('Role created');setCreating(false);setSelected(r.id);roles.reload()}catch(e){setFormError(errMsg(e))}finally{setBusy(false)}
   };
   return <>
     <PageHead title="Roles & Permissions"

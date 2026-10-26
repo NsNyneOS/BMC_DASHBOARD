@@ -1,3 +1,4 @@
+import{toast}from'../store/useToast';
 import{useState}from'react';
 import{Pencil,Plus}from'lucide-react';
 import{api,type ProjectMeta,type ProjectStatus}from'../api/client';
@@ -46,7 +47,7 @@ export default function ProjectsPage(){
     try{
       if(editing==='new')await api.createProject({customerId:form.customerId,name:form.name,description:form.description,color:form.color,status:form.status,internalOnly:form.internalOnly});
       else if(editing)await api.updateProject(editing.id,{name:form.name,description:form.description,color:form.color,status:form.status,internalOnly:form.internalOnly});
-      setEditing(null);projects.reload();void useTaskStore.getState().loadAll();
+      toast(editing==='new'?'Project created':'Project saved');setEditing(null);projects.reload();void useTaskStore.getState().loadAll();
     }catch(e){setFormError(errMsg(e))}finally{setBusy(false)}
   };
   return <>

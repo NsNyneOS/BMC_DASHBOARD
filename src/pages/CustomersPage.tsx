@@ -6,6 +6,7 @@ import{useTaskStore}from'../store/useTaskStore';
 import ModernSelect from'../components/ModernSelect';
 import Loader from'../components/Loader';
 import DataTable,{type Column}from'../components/DataTable';
+import{toast}from'../store/useToast';
 import{Badge,errMsg,Field,FormModal,LogoField,PageHead,useLoad}from'./ui';
 
 const blank={name:'',shortName:'',logoUrl:'',contactName:'',contactEmail:'',contactPhone:'',address:'',status:'active'};
@@ -32,7 +33,7 @@ export default function CustomersPage({onOpen}:{onOpen:(code:string)=>void}){
     try{
       if(editing==='new')await api.createCustomer(form);
       else if(editing)await api.updateCustomer(editing.id,form);
-      setEditing(null);reload();void useTaskStore.getState().loadCustomers();
+      toast(editing==='new'?'Customer created':'Customer saved');setEditing(null);reload();void useTaskStore.getState().loadCustomers();
     }catch(e){setFormError(errMsg(e))}finally{setBusy(false)}
   };
   return <>

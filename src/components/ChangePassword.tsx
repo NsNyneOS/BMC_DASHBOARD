@@ -1,3 +1,4 @@
+import{toast}from'../store/useToast';
 import{useState,type FormEvent}from'react';
 import{api}from'../api/client';
 import{useAuthStore}from'../store/useAuthStore';
@@ -13,7 +14,7 @@ export default function ChangePassword(){
     if(next.length<8){setError('New password must be at least 8 characters');return}
     if(next!==again){setError('The new passwords do not match');return}
     setBusy(true);setError('');
-    try{await api.changePassword(current,next);done()}
+    try{await api.changePassword(current,next);toast('Password changed');done()}
     catch(err){setError(err instanceof Error?err.message:'Could not change password')}
     finally{setBusy(false)}
   };

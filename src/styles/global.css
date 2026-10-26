@@ -2005,3 +2005,10 @@ td strong+.badge{margin-left:14px}
 @media(max-width:1000px){.tableBar:has(.tableFilters) .tableFilters{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.tableBar:has(.tableFilters) .tableFilters{grid-template-columns:1fr}}
 .tableBar:has(.tableFilters) .tableFilters .modernSelectTrigger,.filterField input[type=date]{background:var(--surface)}
+
+/* App-wide toast (saved / created / deleted) */
+.toast.appToast{display:flex;align-items:center;gap:10px;z-index:3000;animation:pop .18s ease}
+.toast.appToast.success svg{color:var(--success,#22c55e)}
+.toast.appToast.error svg{color:var(--danger)}
+.toast.appToast button{display:grid;place-items:center;padding:0;color:inherit;opacity:.7}
+.toast.appToast button:hover{opacity:1}

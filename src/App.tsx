@@ -60,6 +60,7 @@ import Sidebar from "./components/Sidebar";
 import { useAuth } from "./auth/AuthProvider";
 import { ProtectedRoute, RequireAuth } from "./auth/ProtectedRoute";
 import MyTasksPage from "./pages/MyTasksPage";
+import { toast as showToast } from "./store/useToast";
 import AllTasksPage from "./pages/AllTasksPage";
 import CustomersPage from "./pages/CustomersPage";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -917,7 +918,10 @@ function Board({ create }: { create: (s: Status) => void }) {
         danger
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => {
-          if (pendingDelete) remove(pendingDelete.id);
+          if (pendingDelete) {
+            remove(pendingDelete.id);
+            showToast(`${pendingDelete.key} deleted`);
+          }
           setPendingDelete(null);
         }}
       />
@@ -1803,6 +1807,7 @@ function TaskDetailsModal() {
         onConfirm={() => {
           setConfirmDelete(false);
           remove(task.id);
+          showToast(`${task.key} deleted`);
         }}
       />
       <ConfirmDialog
@@ -1829,6 +1834,7 @@ function TaskDetailsModal() {
                   ? task.completedAt || new Date().toISOString()
                   : null,
             });
+          if (pendingStatus) showToast(`${task.key} moved to ${statusName[pendingStatus]}`);
           setPendingStatus(null);
         }}
       />
@@ -1849,7 +1855,6 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
     [defaults, setDefaults] = useState<{ status: Status; date?: string }>({
       status: "todo",
     }),
-    [toast, setToast] = useState(""),
     { user, can } = useAuth(),
     showMine = user?.userType === "external" || can("mytasks.view"),
     setCustomer = useTaskStore((s) => s.setCustomer),
@@ -1885,9 +1890,8 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
     return () => removeEventListener("bmb:create-task", open);
   });
   const created = (key: string) => {
-    setToast(`${key} created`);
+    showToast(`${key} created`);
     setModal(false);
-    setTimeout(() => setToast(""), 3500);
   };
   return (
     <>
@@ -1979,11 +1983,6 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
       <TaskDetailsModal />
       {reportOpen && (
         <ReportModal tasks={all} projects={projectMeta} customerName={viewing} onClose={() => setReportOpen(false)} />
-      )}
-      {toast && (
-        <div className="toast" role="status">
-          {toast} <button onClick={() => setToast("")}>Dismiss</button>
-        </div>
       )}
     </>
   );

@@ -1,3 +1,4 @@
+import{toast}from'../store/useToast';
 import{useState}from'react';
 import{Pencil,Plus}from'lucide-react';
 import{api,type UserRow}from'../api/client';
@@ -40,7 +41,7 @@ export default function UsersPage(){
       const body={name:form.name,email:form.email,roleId:form.roleId,customerId:external?form.customerId:null,projectCodes:external?form.projectCodes:[]};
       if(editing==='new')await api.createUser({...body,username:form.username,...(form.password?{password:form.password}:{})});
       else if(editing)await api.updateUser(editing.id,{...body,isActive:form.isActive,resetPassword:form.resetPassword,...(form.password?{password:form.password}:{})});
-      setEditing(null);users.reload();roles.reload();
+      toast(editing==='new'?'User created':'User saved');setEditing(null);users.reload();roles.reload();
     }catch(e){setFormError(errMsg(e))}finally{setBusy(false)}
   };
   const toggleProject=(code:string)=>setForm(f=>({...f,projectCodes:f.projectCodes.includes(code)?f.projectCodes.filter(c=>c!==code):[...f.projectCodes,code]}));
