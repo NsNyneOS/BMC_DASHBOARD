@@ -48,6 +48,7 @@ export default function MyTasksPage({onOpen}:{onOpen:(task:Task,customerCode:str
   const meta=useMemo(()=>new Map((projects.data??[]).map(p=>[p.id,p])),[projects.data]);
   const columns:Column<Task>[]=[
     {key:'key',label:'Task',sort:t=>t.key,csv:t=>`${t.key} ${t.summary}`,cell:t=><><strong>{t.key}</strong> <span>{t.summary}</span></>},
+    {key:'description',label:'Summary',sort:t=>t.description??'',csv:t=>t.description??'',cell:t=>t.description?<span className="cellClamp" title={t.description}>{t.description}</span>:'—'},
     {key:'project',label:'Project',sort:t=>meta.get(t.project)?.name??t.project,csv:t=>`${meta.get(t.project)?.name??t.project} (${meta.get(t.project)?.customerName??''})`,cell:t=>{const p=meta.get(t.project);return <><span className="dot" style={{background:p?.color??'var(--accent)'}}/> {p?.name??t.project}{p&&<span className="muted"> · {p.customerType==='internal'?'NyneOS':p.customerName}</span>}</>}},
     {key:'status',label:'Status',sort:t=>statusRank[t.status],csv:t=>statusLabel[t.status],cell:t=><Badge tone={statusTone[t.status]}>{statusLabel[t.status]}</Badge>},
     {key:'priority',label:'Priority',sort:t=>priorityRank[t.priority],csv:t=>priorityLabel[t.priority],cell:t=><Badge tone={priorityTone[t.priority]}>{priorityLabel[t.priority]}</Badge>},
@@ -65,6 +66,6 @@ export default function MyTasksPage({onOpen}:{onOpen:(task:Task,customerCode:str
     </>}/>
     {tasks.error&&<p className="loginError">{tasks.error}</p>}
     {tasks.loading&&!tasks.data&&<Loader/>}
-    {tasks.data&&<DataTable rows={rows} rowKey={t=>t.id} filename={`my-tasks-${view}${range==='all'?'':'-'+range}`} onRefresh={tasks.reload} loading={tasks.loading} empty={view==='reviewing'&&range==='all'?'You are not reviewing any tasks.':ranges.find(r=>r.key===range)!.empty} searchText={t=>`${t.key} ${t.summary} ${meta.get(t.project)?.name??t.project} ${statusLabel[t.status]} ${priorityLabel[t.priority]}`} columns={columns}/>}
+    {tasks.data&&<DataTable rows={rows} rowKey={t=>t.id} filename={`my-tasks-${view}${range==='all'?'':'-'+range}`} onRefresh={tasks.reload} loading={tasks.loading} empty={view==='reviewing'&&range==='all'?'You are not reviewing any tasks.':ranges.find(r=>r.key===range)!.empty} searchText={t=>`${t.key} ${t.summary} ${t.description??''} ${meta.get(t.project)?.name??t.project} ${statusLabel[t.status]} ${priorityLabel[t.priority]}`} columns={columns}/>}
   </>;
 }
