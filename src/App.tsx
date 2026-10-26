@@ -523,9 +523,9 @@ function ProjectSummary() {
   }, [open]);
   return (
     <>
-      {(canAlerts || canToday) && (
+      {canAlerts && (
         <AlertsCarousel
-          alerts={canAlerts ? alertItems : alertItems.filter((a) => a.scope === "global")}
+          alerts={alertItems}
           onViewTasks={(alert, project) => setListOf({ alert, project })}
         />
       )}

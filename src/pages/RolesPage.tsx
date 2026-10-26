@@ -7,8 +7,8 @@ import ModernSelect from'../components/ModernSelect';
 import Loader from'../components/Loader';
 import{Badge,Empty,errMsg,Field,FormModal,PageHead,useLoad}from'./ui';
 
-// Customer (external) roles can only hold Board, Project and Task permissions; the rest is NyneOS-only.
-const externalModules=['Dashboard','Board','Projects','Tasks'],hiddenForExternal=['project.internal.view','dashboard.view','calendar.view','alerts.view'];
+// Customer (external) roles can only hold Board and Task permissions; the rest is NyneOS-only.
+const externalModules=['Dashboard','Alerts','Board','Tasks'],hiddenForExternal=['project.internal.view','dashboard.view','calendar.view'];
 
 export default function RolesPage(){
   const canManage=useCan('role.manage'),roles=useLoad(()=>api.roles()),perms=useLoad(()=>api.permissions()),

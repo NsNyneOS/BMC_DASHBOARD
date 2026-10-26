@@ -62,15 +62,15 @@ func TestCanAndInitials(t *testing.T) {
 
 func TestExternalPermissionsAreRestricted(t *testing.T) {
 	final, bad := externalPermissions([]string{"task.create", "board.view"})
-	if bad != "" || len(final) != 5 || final[0] != "dashboard.view" {
+	if bad != "" || len(final) != 4 || final[0] != "dashboard.view" {
 		t.Fatalf("dashboard views are always included, got %v (bad %q)", final, bad)
 	}
-	for _, forbidden := range []string{"customer.view", "customer.manage", "user.view", "user.manage", "role.manage", "project.internal.view"} {
+	for _, forbidden := range []string{"customer.view", "customer.manage", "user.view", "user.manage", "role.manage", "project.internal.view", "project.manage"} {
 		if _, bad := externalPermissions([]string{forbidden}); bad != forbidden {
 			t.Fatalf("%s must not be grantable to customer roles", forbidden)
 		}
 	}
-	if final, _ := externalPermissions([]string{"task.create", "task.create"}); len(final) != 4 {
+	if final, _ := externalPermissions([]string{"task.create", "task.create"}); len(final) != 3 {
 		t.Fatalf("duplicates should be collapsed, got %v", final)
 	}
 }

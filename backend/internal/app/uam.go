@@ -395,16 +395,15 @@ func (s *server) listPermissions(w http.ResponseWriter, r *http.Request) {
 }
 
 // setRolePermissions replaces a role's permission set; every code must exist.
-// Customer (external) roles may only ever hold Board, Project and Task permissions, plus the always-on dashboard
-// views. Customer, user and role management, and internal-only project access, are NyneOS-only.
+// Customer (external) roles may only ever hold Board and Task permissions, plus the always-on dashboard
+// views (alerts.view is a normal switch: off hides the dashboard's alert section). Customer, user and role management, and internal-only project access, are NyneOS-only.
 var externalAllowed = set(
 	"dashboard.view", "calendar.view", "alerts.view", "today.view",
 	"board.view", "board.manage",
-	"project.manage",
 	"task.create", "task.edit", "task.delete", "task.assign", "task.dependencies.edit", "task.visibility.manage", "task.team.manage",
 )
 
-var externalBase = []string{"dashboard.view", "calendar.view", "alerts.view"}
+var externalBase = []string{"dashboard.view", "calendar.view"}
 
 // externalPermissions validates a customer role's permission set and adds the always-on dashboard views.
 // It returns the final list, or the first code that is not allowed for external roles.
