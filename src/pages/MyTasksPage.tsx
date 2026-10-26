@@ -37,12 +37,14 @@ const inRange=(t:Task,r:Range)=>{
 // Tasks assigned to the signed-in user, across every customer they work on.
 export default function MyTasksPage({onOpen}:{onOpen:(task:Task,customerCode:string|null)=>void}){
   const[view,setView]=useState<'assigned'|'reviewing'>('assigned');
-  const assigned=useLoad(()=>api.myTasks('assigned')),reviewing=useLoad(()=>api.myTasks('reviewing')),tasks=view==='assigned'?assigned:reviewing,projects=useLoad(()=>api.projects().catch(()=>[])),selected=useTaskStore(s=>s.selectedTask);
+  const assigned=useLoad(()=>api.myTasks('assigned')),reviewing=useLoad(()=>api.myTasks('reviewing')),tasks=view==='assigned'?assigned:reviewing,live=useTaskStore(s=>s.tasks),projects=useLoad(()=>api.projects().catch(()=>[])),selected=useTaskStore(s=>s.selectedTask);
   // Refetch after the task panel closes, so edits made there show up in the table.
   useEffect(()=>{if(!selected){assigned.reload();reviewing.reload()}},[selected]);// eslint-disable-line react-hooks/exhaustive-deps
   const[range,setRange]=useState<Range>('all');
-  const counts=useMemo(()=>Object.fromEntries(ranges.map(r=>[r.key,(tasks.data??[]).filter(t=>inRange(t,r.key)).length])) as Record<Range,number>,[tasks.data]);
-  const rows=useMemo(()=>(tasks.data??[]).filter(t=>inRange(t,range)),[tasks.data,range]);
+  // Saves made in the task panel update the shared store at once; overlay them so the table changes without a refetch.
+  const current=useMemo(()=>{const m=new Map(live.map(t=>[t.id,t]));return(tasks.data??[]).map(t=>m.get(t.id)??t)},[tasks.data,live]);
+  const counts=useMemo(()=>Object.fromEntries(ranges.map(r=>[r.key,current.filter(t=>inRange(t,r.key)).length])) as Record<Range,number>,[current]);
+  const rows=useMemo(()=>current.filter(t=>inRange(t,range)),[current,range]);
   const meta=useMemo(()=>new Map((projects.data??[]).map(p=>[p.id,p])),[projects.data]);
   const columns:Column<Task>[]=[
     {key:'key',label:'Task',sort:t=>t.key,csv:t=>`${t.key} ${t.summary}`,cell:t=><><strong>{t.key}</strong> <span>{t.summary}</span></>},

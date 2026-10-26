@@ -39,7 +39,8 @@ export default function AllTasksPage({onOpen}:{onOpen:(task:Task,customerCode:st
   const set=(k:keyof typeof f)=>(v:string)=>setF(x=>({...x,[k]:v}));
   const meta=useMemo(()=>new Map((projects.data??[]).map(p=>[p.id,p])),[projects.data]);
   const customerOf=(t:Task)=>{const p=meta.get(t.project);return p?(p.customerType==='internal'?'NyneOS':p.customerName):''};
-  const all=tasks.data??[];
+  // Saves made in the task panel update the shared store at once; overlay them so the table changes without waiting for a refetch.
+  const live=useTaskStore(s=>s.tasks),all=useMemo(()=>{const m=new Map(live.map(t=>[t.id,t]));return(tasks.data??[]).map(t=>m.get(t.id)??t)},[tasks.data,live]);
   const opts=useMemo(()=>{
     const customers=[...new Set(all.map(customerOf).filter(Boolean))].sort(),
       projs=[...new Map(all.map(t=>[t.project,meta.get(t.project)?.name??t.project])).entries()].sort((a,b)=>a[1].localeCompare(b[1])),

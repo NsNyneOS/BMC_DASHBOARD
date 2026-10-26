@@ -2012,3 +2012,9 @@ td strong+.badge{margin-left:14px}
 .toast.appToast.error svg{color:var(--danger)}
 .toast.appToast button{display:grid;place-items:center;padding:0;color:inherit;opacity:.7}
 .toast.appToast button:hover{opacity:1}
+
+/* Toasts appear in the top-right corner */
+.toast{top:24px;bottom:auto;right:24px;left:auto;max-width:min(420px,calc(100vw - 48px))}
+@media(max-width:700px){.toast{top:14px;bottom:auto;left:14px;right:14px;max-width:none}}
+.toast.appToast.topLeft{top:24px;left:24px;right:auto;bottom:auto}
+.saveBtn[aria-busy=true]:disabled{opacity:.85;cursor:progress}

@@ -1517,7 +1517,8 @@ function TaskDetailsModal() {
   const id = useTaskStore((s) => s.selectedTask),
     saved = useTaskStore((s) => s.tasks.find((t) => t.id === s.selectedTask)),
     select = useTaskStore((s) => s.selectTask),
-    commit = useTaskStore((s) => s.updateTask),
+    saveTask = useTaskStore((s) => s.saveTask),
+    [saving, setSaving] = useState(false),
     // Edits stay in this draft until Save is pressed.
     [draft, setDraft] = useState<Partial<Task>>({}),
     task = saved && ({ ...saved, ...draft } as Task),
@@ -1587,13 +1588,23 @@ function TaskDetailsModal() {
                 )}
                 <button
                   className="primary saveBtn"
-                  disabled={!dirty}
-                  onClick={() => {
-                    commit(task.id, draft);
-                    setDraft({});
+                  disabled={!dirty || saving}
+                  aria-busy={saving}
+                  onClick={async () => {
+                    const key = task.key;
+                    setSaving(true);
+                    try {
+                      await saveTask(task.id, draft);
+                      setDraft({});
+                      showToast(`${key} saved`, "success", "top-left");
+                    } catch (e) {
+                      showToast(e instanceof Error ? e.message : "Could not save the task", "error", "top-left");
+                    } finally {
+                      setSaving(false);
+                    }
                   }}
                 >
-                  Save
+                  {saving ? "Saving…" : "Save"}
                 </button>
               </>
             )}
@@ -1834,7 +1845,6 @@ function TaskDetailsModal() {
                   ? task.completedAt || new Date().toISOString()
                   : null,
             });
-          if (pendingStatus) showToast(`${task.key} moved to ${statusName[pendingStatus]}`);
           setPendingStatus(null);
         }}
       />
