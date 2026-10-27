@@ -1665,9 +1665,9 @@ function TaskDetailsModal() {
                     try {
                       await saveTask(task.id, draft);
                       setDraft({});
-                      showToast(`${key} saved`, "success", "top-left");
+                      showToast(`${key} saved`, "success");
                     } catch (e) {
-                      showToast(e instanceof Error ? e.message : "Could not save the task", "error", "top-left");
+                      showToast(e instanceof Error ? e.message : "Could not save the task", "error");
                     } finally {
                       setSaving(false);
                     }
