@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,7 +26,16 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
+// writeErr sends an error to the client. Server-side failures (5xx) and anything that looks like database internals
+// are logged here and replaced by a plain message, so users never see SQL / driver text.
 func writeErr(w http.ResponseWriter, code int, msg string) {
+	if code >= 500 || strings.Contains(msg, "SQLSTATE") || strings.Contains(msg, "ERROR:") {
+		log.Printf("api error %d: %s", code, msg)
+		if code < 500 {
+			code = http.StatusInternalServerError
+		}
+		msg = "Something went wrong on our side. Please try again."
+	}
 	writeJSON(w, code, map[string]string{"error": msg})
 }
 
@@ -92,6 +102,7 @@ func New(ctx context.Context) (http.Handler, error) {
 		return nil, fmt.Errorf("database unreachable: %w", err)
 	}
 	s := &server{db: pool, secret: []byte(secret)}
+	s.checkSchema(ctx)
 	s.seedPasswords(ctx)
 
 	mux := http.NewServeMux()

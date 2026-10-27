@@ -1,5 +1,5 @@
 import{create}from'zustand';
-import{api,setToken,getToken,type AuthUser}from'../api/client';
+import{friendlyError,api,setToken,getToken,type AuthUser}from'../api/client';
 import{useTaskStore}from'./useTaskStore';
 
 interface AuthState{user:AuthUser|null;checking:boolean;error:string;busy:boolean;login:(username:string,password:string)=>Promise<void>;logout:()=>void;restore:()=>Promise<void>;refresh:()=>Promise<void>;passwordChanged:()=>void}
@@ -13,7 +13,7 @@ export const useAuthStore=create<AuthState>((set)=>({
   login:async(username,password)=>{
     set({busy:true,error:''});
     try{const{token,user}=await api.login(username,password);setToken(token);set({user,busy:false,checking:false})}
-    catch(e){set({busy:false,error:e instanceof Error?e.message:'Unable to sign in'})}
+    catch(e){set({busy:false,error:friendlyError(e)})}
   },
   logout:()=>{setToken(null);useTaskStore.getState().clear();set({user:null,error:''})},
   // Re-read the signed-in user (roles / permissions may have changed). Silent: no loading screen, and a failure keeps the current session.

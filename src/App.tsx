@@ -26,6 +26,8 @@ import {
   format,
   isBefore,
   startOfDay,
+  startOfMonth,
+  endOfMonth,
   subDays,
 } from "date-fns";
 import {
@@ -53,7 +55,7 @@ import {
 import { useTaskStore } from "./store/useTaskStore";
 import { useAuthStore, useCan } from "./store/useAuthStore";
 import { useBrand, useClientLabel, useProjectCustomer, useViewingLabel } from "./store/useBrand";
-import { api, type Assignee } from "./api/client";
+import { api, friendlyError, type Assignee } from "./api/client";
 import { projectName, projectColor as color } from "./utils/projects";
 import { usePage } from "./utils/route";
 import Sidebar from "./components/Sidebar";
@@ -80,6 +82,7 @@ import TaskModal from "./components/TaskModal";
 import ModernSelect from "./components/ModernSelect";
 import MultiSelect from "./components/MultiSelect";
 import ReportModal from "./components/ReportModal";
+import CalendarReportModal from "./components/CalendarReportModal";
 import MyTasksCard from "./components/MyTasksCard";
 import TaskGroupsModal from "./components/TaskGroupsModal";
 import ActivityCards from "./components/ActivityCards";
@@ -508,7 +511,7 @@ function ProjectSummary() {
     try {
       await setDates(open.project, draft.start, draft.end);
     } catch (e) {
-      setDateError(e instanceof Error ? e.message : "Could not save dates");
+      setDateError(friendlyError(e));
     } finally {
       setSaving(false);
     }
@@ -1026,7 +1029,8 @@ function Calendar({
 }) {
   const projects = useProjects(),
     projectMeta = useTaskStore((st) => st.projects),
-    clientLabel = useClientLabel();
+    clientLabel = useClientLabel(),
+    viewing = useViewingLabel();
   const allTasks = useTaskStore(useShallow(selectFiltered)),
     [teamFilter, setTeamFilter] = useState<"all" | "nyneos" | "customer">("all"),
     tasks = useMemo(
@@ -1045,6 +1049,7 @@ function Calendar({
     select = useTaskStore((s) => s.selectTask),
     [view, setView] = useState<"timeline" | "month" | "week">("timeline"),
     [anchor, setAnchor] = useState(new Date()),
+    [reportOpen, setReportOpen] = useState(false),
     cardRef = useRef<HTMLDivElement>(null),
     [collapsed, setCollapsed] = useState<Record<string, boolean>>({}),
     [links, setLinks] = useState<DepLink[]>([]),
@@ -1350,12 +1355,13 @@ function Calendar({
                             borderColor: barColor,
                             background: `color-mix(in srgb, ${barColor} 24%, var(--surface))`,
                           }}
-                          title={`${t.summary} · ${statusName[t.status]}${dependencyTitle(t)}${lateCustomer(t) ? " · overdue (customer side)" : ""}`}
+                          title={`${t.summary} · ${Math.round(pc)}% complete · ${statusName[t.status]}${dependencyTitle(t)}${lateCustomer(t) ? " · overdue (customer side)" : ""}`}
                         >
                           <i
                             style={{ width: `${pc}%`, background: color(p) }}
                           />
                           <span className="barText">{t.summary}</span>
+                          <span className="barPct">{Math.round(pc)}%</span>
                         </button>
                       </div>
                     </div>
@@ -1407,81 +1413,106 @@ function Calendar({
       </div>
     );
   };
-  const month = () => (
-    <div className="month">
-      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((x) => (
-        <b key={x}>{x}</b>
-      ))}
-      {days.map((d) => {
-        const iso = toISO(d),
-          list = tasks.filter((t) => t.dueDate === iso);
-        return (
-          <button
-            className={iso === toISO(new Date()) ? "day today" : "day"}
-            key={iso}
-            style={viewOnly ? { cursor: "default" } : undefined}
-            onClick={() => !viewOnly && create("todo", iso)}
-          >
-            <span>{format(d, "d")}</span>
-            {list.slice(0, 3).map((t) => (
-              <i
-                key={t.id}
-                className={[hasDependency(t) && "dependent", lateCustomer(t) && "late"].filter(Boolean).join(" ") || undefined}
-                title={t.summary + dependencyTitle(t)}
-                style={{
-                  border: "1px solid " + taskTint(t),
-                  borderRadius: 999,
-                  color: "#000",
-                  background:
-                    "color-mix(in srgb, " + taskTint(t) + " 28%, #fff)",
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  select(t.id);
-                }}
-              >
-                {t.key} {t.summary}
-              </i>
-            ))}
-            {list.length > 3 && <small>+{list.length - 3} more</small>}
-          </button>
-        );
-      })}
-    </div>
-  );
-  const week = () => (
-    <div className="week">
-      {days.map((d) => {
-        const iso = toISO(d);
-        return (
-          <div key={iso} className={iso === toISO(new Date()) ? "today" : undefined}>
-            <h4>{format(d, "EEE d")}</h4>
-            {tasks
-              .filter((t) => t.dueDate === iso)
-              .map((t) => (
-                <button
-                  key={t.id}
-                  className={[hasDependency(t) && "dependent", lateCustomer(t) && "late"].filter(Boolean).join(" ") || undefined}
-                  title={t.summary + dependencyTitle(t)}
-                  onClick={() => select(t.id)}
-                  style={{
-                    border: "1px solid " + taskTint(t),
-                    borderRadius: 999,
-                    color: "#000",
-                    background:
-                      "color-mix(in srgb, " + taskTint(t) + " 28%, #fff)",
-                  }}
-                >
-                  {t.key}
-                  <br />
-                  {t.summary}
-                </button>
-              ))}
+  // Month view: whole months side by side (this month and the next three). Week view: Week 1-4 of the chosen month.
+  // Both lay tasks out by due date in equal-size columns, 10 per page.
+  const PERIOD_PAGE = 10;
+  const [periodPages, setPeriodPages] = useState<Record<string, number>>({});
+  useEffect(() => setPeriodPages({}), [view, anchor]);
+  const dueIn = (from: Date, to: Date) => {
+    const a = toISO(from),
+      z = toISO(to);
+    return tasks
+      .filter((t) => t.dueDate && t.dueDate >= a && t.dueDate <= z)
+      .sort((x, y) => x.dueDate!.localeCompare(y.dueDate!) || x.key.localeCompare(y.key));
+  };
+  const periodColumn = (id: string, title: string, sub: string, list: Task[], current: boolean) => {
+    const pageCount = Math.max(1, Math.ceil(list.length / PERIOD_PAGE)),
+      page = Math.min(periodPages[id] ?? 0, pageCount - 1),
+      go = (n: number) => setPeriodPages((p) => ({ ...p, [id]: n }));
+    return (
+      <div key={id} className={"periodCol" + (current ? " current" : "")}>
+        <div className="periodHead">
+          <div>
+            <strong>{title}</strong>
+            <small>{sub}</small>
           </div>
+          <span>{list.length}</span>
+        </div>
+        <div className="periodList">
+          {list.slice(page * PERIOD_PAGE, (page + 1) * PERIOD_PAGE).map((t) => (
+            <button
+              key={t.id}
+              className={["periodTask", hasDependency(t) && "dependent", lateCustomer(t) && "late"].filter(Boolean).join(" ")}
+              title={t.summary + dependencyTitle(t)}
+              onClick={() => select(t.id)}
+              style={{
+                border: "1px solid " + taskTint(t),
+                background: "color-mix(in srgb, " + taskTint(t) + " 28%, #fff)",
+              }}
+            >
+              <span>
+                {t.key} · {format(parseISO(t.dueDate!), "MMM d")}
+              </span>
+              {t.summary}
+            </button>
+          ))}
+          {list.length === 0 && <p className="periodEmpty">No tasks due</p>}
+        </div>
+        {pageCount > 1 && (
+          <div className="columnPager">
+            <button className="icon small" disabled={page === 0} onClick={() => go(page - 1)} aria-label={"Previous page, " + title}>
+              <ChevronLeft />
+            </button>
+            <span>
+              {page + 1} / {pageCount}
+            </span>
+            <button className="icon small" disabled={page >= pageCount - 1} onClick={() => go(page + 1)} aria-label={"Next page, " + title}>
+              <ChevronRight />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+  const month = () => (
+    <div className="periodGrid">
+      {Array.from({ length: 4 }, (_, i) => {
+        const first = startOfMonth(addMonths(anchor, i)),
+          last = endOfMonth(first);
+        return periodColumn(
+          toISO(first),
+          format(first, "MMMM"),
+          format(first, "yyyy"),
+          dueIn(first, last),
+          toISO(first) === toISO(startOfMonth(new Date())),
         );
       })}
     </div>
   );
+  const week = () => {
+    const first = startOfMonth(anchor),
+      last = endOfMonth(first),
+      todayISO = toISO(new Date());
+    return (
+      <>
+        <h3 className="periodTitle">{format(first, "MMMM yyyy")}</h3>
+        <div className="periodGrid">
+          {[0, 1, 2, 3].map((i) => {
+            // Weeks 1-3 are days 1-7, 8-14, 15-21; Week 4 runs to the end of the month.
+            const from = addDays(first, i * 7),
+              to = i === 3 ? last : addDays(from, 6);
+            return periodColumn(
+              "w" + i + toISO(first),
+              "Week " + (i + 1),
+              format(from, "MMM d") + " – " + format(to, "MMM d"),
+              dueIn(from, to),
+              todayISO >= toISO(from) && todayISO <= toISO(to),
+            );
+          })}
+        </div>
+      </>
+    );
+  };
   return (
     <section className="section" id="calendar">
       <div className="sectionHead">
@@ -1514,10 +1545,13 @@ function Calendar({
               </button>
             ))}
           </div>
+          <button className="pill wide reportBtn" onClick={() => setReportOpen(true)}>
+            Report
+          </button>
           <button
             className="pill"
             onClick={() =>
-              setAnchor(subDays(anchor, view === "month" ? 30 : 7))
+              setAnchor(view === "timeline" ? subDays(anchor, 7) : addMonths(anchor, -1))
             }
           >
             <ChevronLeft />
@@ -1544,13 +1578,24 @@ function Calendar({
           <button
             className="pill"
             onClick={() =>
-              setAnchor(addDays(anchor, view === "month" ? 30 : 7))
+              setAnchor(view === "timeline" ? addDays(anchor, 7) : addMonths(anchor, 1))
             }
           >
             <ChevronRight />
           </button>
         </div>
       </div>
+      {reportOpen && (
+        <CalendarReportModal
+          tasks={allTasks}
+          view={view}
+          team={teamFilter}
+          anchor={anchor}
+          customerName={viewing}
+          customerLabel={clientLabel}
+          onClose={() => setReportOpen(false)}
+        />
+      )}
       <div className="card calendarCard" ref={cardRef}>
         {view === "timeline" ? timeline() : view === "month" ? month() : week()}
       </div>
@@ -1667,7 +1712,7 @@ function TaskDetailsModal() {
                       setDraft({});
                       showToast(`${key} saved`, "success");
                     } catch (e) {
-                      showToast(e instanceof Error ? e.message : "Could not save the task", "error");
+                      showToast(friendlyError(e), "error");
                     } finally {
                       setSaving(false);
                     }
@@ -2083,7 +2128,7 @@ function AppData() {
   useEffect(() => {
     setLoadError("");
     loadAll().catch((e) =>
-      setLoadError(e instanceof Error ? e.message : "Unable to load data"),
+      setLoadError(friendlyError(e)),
     );
   }, [user?.id, loadAll]);
   if (loadError)

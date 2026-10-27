@@ -1,4 +1,5 @@
 import type{Task}from'../types/task';
+import{toast}from'../store/useToast';
 
 export const API_BASE_URL=(import.meta.env.VITE_API_BASE_URL as string|undefined)?.replace(/\/$/,'')||'http://localhost:8080';
 const TOKEN_KEY='bmb_token_v1';
@@ -7,12 +8,19 @@ export const getToken=()=>{try{return localStorage.getItem(TOKEN_KEY)}catch{retu
 export const setToken=(token:string|null)=>{try{token?localStorage.setItem(TOKEN_KEY,token):localStorage.removeItem(TOKEN_KEY)}catch{/* storage unavailable */}};
 
 export class ApiError extends Error{constructor(public status:number,message:string){super(message)}}
+/** An error whose text is meant for the user (everything else is shown as a generic message). */
+export class FriendlyError extends Error{}
+const GENERIC='Something went wrong. Please try again.';
+/** The message to show a user for any thrown value: our own messages and validation errors only, never technical text. */
+export const friendlyError=(e:unknown)=>e instanceof ApiError?(e.status>=500||/SQLSTATE|ERROR:|enum|syntax|column|relation/i.test(e.message)?GENERIC:e.message):e instanceof FriendlyError?e.message:GENERIC;
 
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{
   const token=getToken();
-  const res=await fetch(API_BASE_URL+path,{...init,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{}),...init.headers}});
-  if(res.status===401&&token&&path!=='/api/auth/login'){setToken(null);dispatchEvent(new Event('bmb:unauthorized'))}
-  if(!res.ok){const body=await res.json().catch(()=>({}));throw new ApiError(res.status,body.error||res.statusText)}
+  let res:Response;
+  try{res=await fetch(API_BASE_URL+path,{...init,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{}),...init.headers}})}
+  catch{throw new ApiError(0,"Can't reach the server. Check your internet connection and try again.")}
+  if(res.status===401&&token&&path!=='/api/auth/login'){setToken(null);dispatchEvent(new Event('bmb:unauthorized'));toast('Your session expired. Please sign in again.','error');throw new ApiError(401,'Your session expired. Please sign in again.')}
+  if(!res.ok){const body=await res.json().catch(()=>({}));throw new ApiError(res.status,body.error||GENERIC)}
   return res.status===204?undefined as T:res.json();
 }
 

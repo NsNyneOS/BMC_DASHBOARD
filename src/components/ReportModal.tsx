@@ -1,3 +1,4 @@
+import{importFresh}from'../utils/lazy';
 import{useMemo,useState}from'react';
 import{format}from'date-fns';
 import ModernSelect from'./ModernSelect';
@@ -22,7 +23,7 @@ export default function ReportModal({tasks,projects,customerName,onClose}:{tasks
   const download=async()=>{
     setBusy(true);setError('');
     try{
-      const{downloadReportPdf}=await import('../utils/reportPdf');
+      const{downloadReportPdf}=await importFresh(()=>import('../utils/reportPdf'));
       const range=f.from||f.to?`${f.from||'start'} to ${f.to||'today'}`:'All time';
       const lines=[
         `Period: ${periods.find(p=>p.value===f.period)?.label}${f.period==='all'?'':` (${range})`}`,

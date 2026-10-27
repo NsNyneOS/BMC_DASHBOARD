@@ -1,3 +1,4 @@
+import{friendlyError}from'../api/client';
 import{toast}from'../store/useToast';
 import{useState,type FormEvent}from'react';
 import{api}from'../api/client';
@@ -15,7 +16,7 @@ export default function ChangePassword(){
     if(next!==again){setError('The new passwords do not match');return}
     setBusy(true);setError('');
     try{await api.changePassword(current,next);toast('Password changed');done()}
-    catch(err){setError(err instanceof Error?err.message:'Could not change password')}
+    catch(err){setError(friendlyError(err))}
     finally{setBusy(false)}
   };
   return <div className="loginPage">

@@ -1,7 +1,8 @@
+import{friendlyError}from'../api/client';
 import{useCallback,useEffect,useRef,useState,type FormEvent,type ReactNode}from'react';
 import{Check,ImagePlus,Trash2,X}from'lucide-react';
 
-export const errMsg=(e:unknown)=>e instanceof Error?e.message:'Something went wrong';
+export const errMsg=(e:unknown)=>friendlyError(e);
 
 export function PageHead({title,action}:{title:string;action?:ReactNode}){
   return <div className="pageHead">

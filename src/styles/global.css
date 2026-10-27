@@ -2165,3 +2165,30 @@ td strong+.badge{margin-left:14px}
 .drillMeta{font-size:13px}
 
 .alertNav{justify-content:center}
+
+/* Timeline bar: on hover / focus the percentage complete is added after the title, which keeps whatever room is left */
+.bar .barPct{display:none;position:relative;white-space:nowrap;font-weight:700}
+.bar:hover,.bar:focus-visible{display:flex;align-items:center;gap:8px}
+.bar:hover .barText,.bar:focus-visible .barText{display:block;flex:1 1 auto;min-width:0;text-align:left}
+.bar:hover .barPct,.bar:focus-visible .barPct{display:block;flex:none;line-height:31px}
+
+/* Month / Week views: equal-size period columns (Nov, Dec… or Week 1–4), 10 tasks per page */
+.periodTitle{margin:0;padding:18px 22px 0;font-size:18px;letter-spacing:-.02em}
+.periodGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:18px}
+.periodCol{display:flex;flex-direction:column;gap:10px;min-height:460px;padding:14px;border:1px solid var(--border);border-radius:22px;background:var(--surface-2)}
+.periodCol.current{box-shadow:inset 0 0 0 2px var(--accent)}
+.periodHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.periodHead strong{display:block;font-size:16px}
+.periodHead small{display:block;color:var(--muted);font-size:11px}
+.periodHead>span{display:grid;place-items:center;min-width:26px;height:26px;border-radius:50%;background:var(--surface);font-size:11px;font-weight:700}
+.periodList{display:grid;gap:8px;align-content:start;flex:1}
+.periodTask{display:block;width:100%;padding:8px 14px;border-radius:16px;color:#000;text-align:left;font-size:12px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.periodTask span{display:block;font-size:10px;opacity:.7}
+.periodTask.dependent{border-style:dashed!important}
+.periodEmpty{margin:20px 0;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:1100px){.periodGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.periodGrid{grid-template-columns:1fr}.periodCol{min-height:0}}
+.reportTools{justify-content:space-between;flex-wrap:wrap;gap:10px}
+.crashPage{min-height:100vh;display:grid;place-content:center;justify-items:center;gap:10px;padding:24px;text-align:center}
+.crashPage h1{margin:0;font-size:28px}
+.crashPage p{margin:0 0 10px;color:var(--muted)}
