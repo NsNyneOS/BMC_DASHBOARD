@@ -60,6 +60,10 @@ export const api={
   createUser:(data:Record<string,unknown>)=>request<UserRow>('/api/users',{method:'POST',body:JSON.stringify(data)}),
   updateUser:(id:string,data:Record<string,unknown>)=>request<UserRow>(`/api/users/${id}`,{method:'PATCH',body:JSON.stringify(data)}),
   audit:()=>request<AuditEntry[]>('/api/audit'),
+  milestones:(customer='all')=>request<Milestone[]>('/api/milestones?customer='+encodeURIComponent(customer)),
+  createMilestone:(data:MilestoneInput)=>request<Milestone>('/api/milestones',{method:'POST',body:JSON.stringify(data)}),
+  updateMilestone:(id:string,data:Partial<MilestoneInput>)=>request<Milestone>(`/api/milestones/${id}`,{method:'PATCH',body:JSON.stringify(data)}),
+  deleteMilestone:(id:string)=>request<void>(`/api/milestones/${id}`,{method:'DELETE'}),
   roles:()=>request<Role[]>('/api/roles'),
   createRole:(data:Record<string,unknown>)=>request<Role>('/api/roles',{method:'POST',body:JSON.stringify(data)}),
   updateRole:(id:string,data:Record<string,unknown>)=>request<Role>(`/api/roles/${id}`,{method:'PATCH',body:JSON.stringify(data)}),
@@ -71,3 +75,6 @@ export const api={
 };
 
 export interface AuditEntry{id:string;userName:string;action:'create'|'update'|'delete';entity:string;entityId:string;label:string;detail:Record<string,unknown>;createdAt:string}
+
+export interface Milestone{id:string;title:string;summary:string;date:string;customerId:string;customerCode:string;customerName:string}
+export interface MilestoneInput{title:string;summary:string;date:string;customerId:string}

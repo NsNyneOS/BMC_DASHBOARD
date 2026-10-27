@@ -7,8 +7,8 @@ export interface Breakdown{code:string;name:string;color:string;count:number}
 // scope 'project': an alert of one project. scope 'global': a ready-made one (today's starts / completions, your tasks, deadlines).
 export interface AlertItem{id:string;scope?:'project'|'global';project:string;projectName:string;color:string;meta:string;severity:string;message:string;tasks:Task[];breakdown?:Breakdown[];advice?:string}
 
-export const TONE:Record<string,string>={critical:'bad',warning:'warn',info:'info',success:'ok'};
-export const NAME:Record<string,string>={critical:'Critical',warning:'Warning',info:'Info',success:'Done'};
+export const TONE:Record<string,string>={critical:'bad',warning:'warn',info:'info',success:'ok',milestone:'milestone'};
+export const NAME:Record<string,string>={critical:'Critical',warning:'Warning',info:'Info',success:'Done',milestone:'Milestone'};
 export const ADVICE:Record<string,string>={
   critical:'Review these tasks first: confirm who owns each one, then re-plan the dates or hand them over.',
   warning:'Check progress with the owners now, before this slips into a critical alert.',
@@ -32,7 +32,7 @@ export function stats(a:AlertItem):{label:string;value:string;warn?:boolean}[]{
 // Alerts as clickable rows (click for the details popup), three per page, with severity filter chips and centred paging.
 export default function AlertsCarousel({alerts,onViewTasks}:{alerts:AlertItem[];onViewTasks:(alert:AlertItem,project?:string)=>void}){
   const[filter,setFilter]=useState('all'),[page,setPage]=useState(0);
-  const severities=useMemo(()=>['critical','warning','info','success'].filter(s=>alerts.some(a=>a.severity===s)),[alerts]);
+  const severities=useMemo(()=>['critical','warning','milestone','info','success'].filter(s=>alerts.some(a=>a.severity===s)),[alerts]);
   const list=useMemo(()=>filter==='all'?alerts:alerts.filter(a=>a.severity===filter),[alerts,filter]);
   const key=list.map(a=>a.id).join('|');
   useEffect(()=>{setPage(0)},[filter,key]);
@@ -52,7 +52,7 @@ export default function AlertsCarousel({alerts,onViewTasks}:{alerts:AlertItem[];
       </div>}
     </div>
     {rows.length===0?<p className="alertEmpty">No alerts right now. Everything is on track.</p>:<div className="drillList">
-      {rows.map(cur=><button type="button" key={cur.id} className="drillRow alertRow" onClick={()=>onViewTasks(cur)} title="Show details">
+      {rows.map(cur=><button type="button" key={cur.id} className={"drillRow alertRow"+(cur.severity==='milestone'?' milestoneAlert':'')} onClick={()=>onViewTasks(cur)} title="Show details">
         <i className="drillDot" style={{background:cur.color}}/>
         <span className="drillMain"><h3>{cur.message}</h3><small>{cur.meta}</small></span>
         <span className="drillSide">

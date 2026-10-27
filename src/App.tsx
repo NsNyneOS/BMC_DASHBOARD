@@ -41,6 +41,7 @@ import {
   Clock3,
   Filter,
   Menu as MenuIcon,
+  Flag,
   Settings,
   Monitor,
   Moon,
@@ -83,6 +84,7 @@ import ModernSelect from "./components/ModernSelect";
 import MultiSelect from "./components/MultiSelect";
 import ReportModal from "./components/ReportModal";
 import CalendarReportModal from "./components/CalendarReportModal";
+import MilestoneModal from "./components/MilestoneModal";
 import MyTasksCard from "./components/MyTasksCard";
 import TaskGroupsModal from "./components/TaskGroupsModal";
 import ActivityCards from "./components/ActivityCards";
@@ -200,6 +202,8 @@ function Header({
 }) {
   const canBoard = useCan("board.view"),
     canCreate = useCan("task.create"),
+    canMilestone = useCan("milestone.manage"),
+    openMilestone = useTaskStore((s) => s.openMilestone),
     brand = useBrand();
   const filters = useTaskStore((s) => s.filters),
     setFilters = useTaskStore((s) => s.setFilters),
@@ -323,6 +327,11 @@ function Header({
             <LogOut />
           </button>
           </div>
+          {!admin && canMilestone && (
+            <button className="create createAlt" onClick={() => openMilestone("new")} aria-label="Create Milestone" title="Create Milestone">
+              <Plus />
+            </button>
+          )}
           {!admin && canCreate && (
             <button
               className="create"
@@ -435,8 +444,10 @@ function ProjectSummary() {
     canAlerts = can("alerts.view"),
     canToday = can("today.view"),
     [listOf, setListOf] = useState<{ alert: AlertItem; project?: string } | null>(null),
+    milestones = useTaskStore((s) => s.milestones),
+    openMilestone = useTaskStore((s) => s.openMilestone),
     alertItems = useMemo<AlertItem[]>(() => {
-      const rank: Record<string, number> = { critical: 0, warning: 1, info: 2, success: 3 };
+      const rank: Record<string, number> = { critical: 0, warning: 1, milestone: 2, info: 3, success: 4 };
       const inView = tasks.filter((t) => shown.includes(t.project));
       const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
       const global = (
@@ -493,8 +504,27 @@ function ProjectSummary() {
             tasks: a.taskKeys.map((k) => tasks.find((x) => x.key === k)).filter((t): t is Task => !!t),
           })),
         );
-      return [...projectAlerts, ...premade].sort((x, y) => (rank[x.severity] ?? 9) - (rank[y.severity] ?? 9));
-    }, [rows, shown, tasks, me, canToday]);
+      // Milestones coming up in the next 30 days (customer users see only their own customer's).
+      const todayIso = toISO(new Date()),
+        horizon = toISO(addDays(new Date(), 30)),
+        upcoming: AlertItem[] = milestones
+          .filter((m) => m.date >= todayIso && m.date <= horizon)
+          .map((m) => {
+            const n = differenceInCalendarDays(parseISO(m.date), new Date());
+            return {
+              id: "milestone:" + m.id,
+              scope: "global" as const,
+              project: "",
+              projectName: m.customerName,
+              color: "var(--ms, #3b82f6)",
+              meta: `${format(parseISO(m.date), "EEE, d MMM yyyy")} · ${n <= 0 ? "today" : n === 1 ? "tomorrow" : `in ${n} days`}`,
+              severity: "milestone",
+              message: `Upcoming milestone: ${m.title}`,
+              tasks: [],
+            };
+          });
+      return [...projectAlerts, ...premade, ...upcoming].sort((x, y) => (rank[x.severity] ?? 9) - (rank[y.severity] ?? 9));
+    }, [rows, shown, tasks, me, canToday, milestones]);
   useEffect(() => {
     const m = open ? meta.find((x) => x.id === open.project) : null;
     setDraft({ start: m?.startDate || "", end: m?.endDate || "" });
@@ -529,7 +559,14 @@ function ProjectSummary() {
       {canAlerts && (
         <AlertsCarousel
           alerts={alertItems}
-          onViewTasks={(alert, project) => setListOf({ alert, project })}
+          onViewTasks={(alert, project) => {
+            if (alert.id.startsWith("milestone:")) {
+              const m = milestones.find((x) => x.id === alert.id.slice(10));
+              if (m) openMilestone(m);
+              return;
+            }
+            setListOf({ alert, project });
+          }}
         />
       )}
       {listOf && (
@@ -1029,6 +1066,8 @@ function Calendar({
 }) {
   const projects = useProjects(),
     projectMeta = useTaskStore((st) => st.projects),
+    milestones = useTaskStore((st) => st.milestones),
+    openMilestone = useTaskStore((st) => st.openMilestone),
     clientLabel = useClientLabel(),
     viewing = useViewingLabel();
   const allTasks = useTaskStore(useShallow(selectFiltered)),
@@ -1208,7 +1247,7 @@ function Calendar({
   const timeline = () => {
     const DAY = 44,
       dated = tasks.filter((t) => t.startDate && t.dueDate),
-      stamps = dated.flatMap((t) => [t.startDate!, t.dueDate!]).sort(),
+      stamps = [...dated.flatMap((t) => [t.startDate!, t.dueDate!]), ...milestones.map((m) => m.date)].sort(),
       from = startOfDay(
         stamps.length && parseISO(stamps[0]) < subDays(anchor, 7)
           ? subDays(parseISO(stamps[0]), 3)
@@ -1273,6 +1312,30 @@ function Calendar({
             ))}
           </div>
         </div>
+        {milestones.map((m) => (
+          <div key={m.id} className="msBand" style={{ left: 245 + slot(m.date) * DAY, width: DAY }} aria-hidden />
+        ))}
+        {milestones.length > 0 && (
+          <div className="timelineRow milestoneRow">
+            <span>
+              <Flag size={13} /> Milestones
+            </span>
+            <div className="lane">
+              {milestones.map((m) => (
+                <button
+                  key={m.id}
+                  className="msMark"
+                  style={{ left: slot(m.date) * DAY + 2 }}
+                  onClick={() => openMilestone(m)}
+                  title={`${m.title} · ${format(parseISO(m.date), "d MMM yyyy")}${m.summary ? "\n" + m.summary : ""}`}
+                >
+                  <i />
+                  <span>{m.title}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {groups.map((p) => (
           <div key={p}>
             <button
@@ -1588,7 +1651,6 @@ function Calendar({
       {reportOpen && (
         <CalendarReportModal
           tasks={allTasks}
-          view={view}
           team={teamFilter}
           anchor={anchor}
           customerName={viewing}
@@ -2105,6 +2167,7 @@ function Dashboard({ embedded = false }: { embedded?: boolean }) {
         onCreated={created}
       />
       <TaskDetailsModal />
+      <MilestoneModal />
       {reportOpen && (
         <ReportModal tasks={all} projects={projectMeta} customerName={viewing} onClose={() => setReportOpen(false)} />
       )}
