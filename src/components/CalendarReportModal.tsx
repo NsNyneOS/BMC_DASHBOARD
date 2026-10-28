@@ -12,7 +12,7 @@ const iso=(d:Date)=>format(d,'yyyy-MM-dd');
 // The report starts from the range the timeline shows on screen (a week back, four weeks wide).
 const defaults=(anchor:Date)=>({from:iso(subDays(anchor,7)),to:iso(addDays(anchor,20))});
 
-// "Report" popup on the calendar: same view / team switches as the calendar, then a slide-deck PDF (Day, Week and Month timelines) for the chosen dates.
+// "Report" popup on the calendar: same view / team switches as the calendar, then a PDF of the timeline for the chosen dates.
 export default function CalendarReportModal({tasks,team:initialTeam,anchor,customerName,customerLabel,onClose}:{tasks:Task[];team:Team;anchor:Date;customerName:string;customerLabel:string;onClose:()=>void}){
   const milestones=useTaskStore(s=>s.milestones),view='timeline',[team,setTeam]=useState(initialTeam),[range,setRange]=useState(()=>defaults(anchor)),[projects,setProjects]=useState<string[]>([]),[picked,setPicked]=useState<string[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const byTeam=useMemo(()=>tasks.filter(t=>team==='all'?true:team==='customer'?t.team==='bmc':t.team!=='bmc'),[tasks,team]);
@@ -24,9 +24,10 @@ export default function CalendarReportModal({tasks,team:initialTeam,anchor,custo
   const download=async()=>{
     setBusy(true);setError('');
     try{
-      const{downloadTimelineDeck}=await importFresh(()=>import('../utils/timelineDeck'));
-      await downloadTimelineDeck(shown,{title:'Timeline Report',customerName,...range,teamLabel:team==='all'?'All teams':team==='nyneos'?'NyneOS':customerLabel,projectName,projectColor,
-        milestones:milestones.map(m=>({title:m.title,date:m.date,customer:m.customerName}))},`timeline-${format(new Date(),'yyyy-MM-dd')}.pdf`);
+      const{downloadCalendarPdf}=await importFresh(()=>import('../utils/calendarPdf'));
+      await downloadCalendarPdf(shown,{...range,title:'Timeline Report',subtitle:`${customerName}   |   Generated ${format(new Date(),'dd MMM yyyy, HH:mm')}`,
+        teamLabel:team==='all'?'All teams':team==='nyneos'?'NyneOS':customerLabel,projectName,projectColor,customerLabel,
+        milestones:milestones.map(m=>({id:m.id,title:m.title,date:m.date,projectCode:m.projectCode??''}))},`timeline-${format(new Date(),'yyyy-MM-dd')}.pdf`);
       onClose();
     }catch(e){setError(errMsg(e))}finally{setBusy(false)}
   };

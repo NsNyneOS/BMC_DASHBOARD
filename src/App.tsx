@@ -1310,9 +1310,7 @@ function Calendar({
                     title={m.summary || undefined}
                   >
                     <i />
-                    <span className="msLabel">
-                      {m.title} <em>{format(parseISO(m.date), "d MMM yyyy")}</em>
-                    </span>
+                    <span className="msLabel">{m.title}</span>
                   </button>
                 ))}
             </div>
