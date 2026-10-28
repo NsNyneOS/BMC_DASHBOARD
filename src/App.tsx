@@ -1520,13 +1520,13 @@ function Calendar({
             ))}
           </div>
           <div className="segments">
-            {(["timeline", "month", "week"] as const).map((v) => (
+            {(["timeline", "week", "month"] as const).map((v) => (
               <button
                 key={v}
                 className={view === v ? "active" : ""}
                 onClick={() => setView(v)}
               >
-                {v}
+                {v === "timeline" ? "days" : v}
               </button>
             ))}
           </div>
