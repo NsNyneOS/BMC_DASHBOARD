@@ -27,6 +27,7 @@ import {
   isBefore,
   startOfDay,
   startOfMonth,
+  startOfWeek,
   endOfMonth,
   subDays,
 } from "date-fns";
@@ -77,7 +78,7 @@ import ChangePassword from "./components/ChangePassword";
 import Loader from "./components/Loader";
 import { selectFiltered, NONE } from "./store/selectors";
 import { useTheme, type Mode, type Theme } from "./theme/ThemeProvider";
-import { monthGrid, toISO } from "./utils/date";
+import { toISO } from "./utils/date";
 import type { ProjectId, Status, Task } from "./types/task";
 import TaskModal from "./components/TaskModal";
 import ModernSelect from "./components/ModernSelect";
@@ -120,8 +121,6 @@ const useVisibleProjects = () => {
 };
 const due = (x: string | null) =>
   x ? format(new Date(`${x}T12:00:00`), "MMM d") : "No date";
-// Customer-side tasks are drawn in green in every calendar view; the rest use their project colour.
-const taskTint = (t: Task) => (t.team === "bmc" ? "var(--success, #16a34a)" : color(t.project));
 const isOver = (t: Task) =>
   !!t.dueDate &&
   t.status !== "done" &&
@@ -1090,10 +1089,13 @@ function Calendar({
     // Visible lane area (inside the timeline): connectors are clipped so they never draw over the sticky
     // task-name column or the date header.
     [clip, setClip] = useState({ x: 245, y: 0 });
+  // Timeline, Week and Month are all the same chart; they differ in what one column stands for (a day, a week, a month).
+  const unit: "day" | "week" | "month" = view === "timeline" ? "day" : view,
+    UW = unit === "day" ? 44 : unit === "week" ? 150 : 220;
   // Measure the rendered bars and draw an elbow connector from every task to the tasks it depends on.
   useLayoutEffect(() => {
     const box = cardRef.current?.querySelector<HTMLElement>(".timeline");
-    if (view !== "timeline" || !box) {
+    if (!box) {
       setLinks([]);
       return;
     }
@@ -1190,17 +1192,16 @@ function Calendar({
   useEffect(() => {
     const box = cardRef.current,
       el = box?.querySelector<HTMLElement>("[data-today]");
-    if (!box || !el || view !== "timeline") return;
+    if (!box || !el) return;
     const left =
       el.getBoundingClientRect().left -
       box.getBoundingClientRect().left +
       box.scrollLeft;
-    box.scrollLeft = Math.max(0, left - 245 - 44 * 2);
+    box.scrollLeft = Math.max(0, left - 245 - UW * 2);
   }, [view, anchor]);
   // Pin the timeline's date header under the sticky topbar while the browser page scrolls.
   // The card is overflow-x:auto (horizontal scroll), which would trap native `position: sticky`.
   useEffect(() => {
-    if (view !== "timeline") return;
     const box = cardRef.current,
       head = box?.querySelector<HTMLElement>(".timelineHeader");
     if (!box || !head) return;
@@ -1221,24 +1222,8 @@ function Calendar({
       head.style.transform = "";
     };
   }, [view, anchor, collapsed, tasks]);
-  const days = useMemo(
-    () =>
-      view === "month"
-        ? monthGrid(anchor)
-        : Array.from({ length: view === "week" ? 7 : 28 }, (_, i) =>
-            addDays(
-              startOfDay(
-                view === "week"
-                  ? subDays(anchor, (anchor.getDay() + 6) % 7)
-                  : subDays(anchor, 7),
-              ),
-              i,
-            ),
-          ),
-    [view, anchor],
-  );
   const timeline = () => {
-    const DAY = 44,
+    const DAY = UW,
       dated = tasks.filter((t) => t.startDate && t.dueDate),
       stamps = [...dated.flatMap((t) => [t.startDate!, t.dueDate!]), ...milestones.map((m) => m.date)].sort(),
       from = startOfDay(
@@ -1255,58 +1240,103 @@ function Calendar({
         { length: differenceInCalendarDays(to, from) + 1 },
         (_, i) => addDays(from, i),
       ),
-      dayIndex = new Map(tdays.map((d, i) => [toISO(d), i])),
-      slot = (iso: string) =>
-        dayIndex.get(toISO(startOfDay(parseISO(iso)))) ?? 0,
-      todayISO = toISO(new Date());
+      todayISO = toISO(new Date()),
+      // One column per day, per Monday-to-Sunday week, or per calendar month.
+      cols: { start: Date; end: Date; days: number }[] =
+        unit === "day"
+          ? tdays.map((d) => ({ start: d, end: d, days: 1 }))
+          : unit === "week"
+            ? Array.from({ length: Math.ceil((differenceInCalendarDays(to, startOfWeek(from, { weekStartsOn: 1 })) + 1) / 7) }, (_, i) => {
+                const a = addDays(startOfWeek(from, { weekStartsOn: 1 }), i * 7);
+                return { start: a, end: addDays(a, 6), days: 7 };
+              })
+            : Array.from({ length: (to.getFullYear() - from.getFullYear()) * 12 + to.getMonth() - from.getMonth() + 1 }, (_, i) => {
+                const a = startOfMonth(addMonths(from, i)),
+                  e = endOfMonth(a);
+                return { start: a, end: e, days: differenceInCalendarDays(e, a) + 1 };
+              }),
+      colOf = (d: Date) =>
+        unit === "day"
+          ? differenceInCalendarDays(d, cols[0].start)
+          : unit === "week"
+            ? Math.floor(differenceInCalendarDays(d, cols[0].start) / 7)
+            : (d.getFullYear() - cols[0].start.getFullYear()) * 12 + d.getMonth() - cols[0].start.getMonth(),
+      // Pixel position of a date inside its column; `after` = 1 puts it at the end of that day.
+      xOf = (iso: string, after: number) => {
+        const d = startOfDay(parseISO(iso)),
+          i = Math.max(0, Math.min(cols.length - 1, colOf(d))),
+          c = cols[i];
+        return (i + Math.min(1, Math.max(0, (differenceInCalendarDays(d, c.start) + after) / c.days))) * DAY;
+      };
     return (
       <div
-        className="timeline"
+        className={"timeline" + (unit === "day" ? "" : " coarse")}
         style={
           {
             "--day": DAY + "px",
             // Distance from the left edge to the first Saturday, used to shade weekend columns grey.
             "--wk": ((6 - from.getDay() + 7) % 7) * DAY + "px",
-            width: 245 + tdays.length * DAY,
+            width: 245 + cols.length * DAY,
           } as React.CSSProperties
         }
       >
         <div className="timelineHeader">
           <b>Project / task</b>
           <div
-            style={{ gridTemplateColumns: `repeat(${tdays.length},${DAY}px)` }}
+            style={{ gridTemplateColumns: `repeat(${cols.length},${DAY}px)` }}
           >
-            {tdays.map((d, i) => (
-              <span
-                key={d.toISOString()}
-                data-today={toISO(d) === todayISO || undefined}
-                data-weekend={d.getDay() === 0 || d.getDay() === 6 || undefined}
-                data-now={toISO(d) === toISO(new Date()) || undefined}
-                title={format(d, "d MMM yyyy") + " · click to start the timeline here"}
-                className="dayHead"
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  cardRef.current?.scrollTo({ left: i * DAY, behavior: "smooth" })
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    cardRef.current?.scrollTo({ left: i * DAY, behavior: "smooth" });
+            {cols.map((c, i) => {
+              const now = todayISO >= toISO(c.start) && todayISO <= toISO(c.end),
+                d = c.start,
+                jump = () => cardRef.current?.scrollTo({ left: i * DAY, behavior: "smooth" });
+              return (
+                <span
+                  key={d.toISOString()}
+                  data-today={now || undefined}
+                  data-weekend={(unit === "day" && (d.getDay() === 0 || d.getDay() === 6)) || undefined}
+                  data-now={now || undefined}
+                  title={
+                    (unit === "day"
+                      ? format(d, "d MMM yyyy")
+                      : unit === "week"
+                        ? `${format(d, "d MMM")} – ${format(c.end, "d MMM yyyy")}`
+                        : format(d, "MMMM yyyy")) + " · click to start the timeline here"
                   }
-                }}
-              >
-                {format(d, "d")}
-                <small>{format(d, "EEEEE")}</small>
-                {i === 0 || tdays[i - 1].getMonth() !== d.getMonth() ? (
-                  <small>{format(d, "MMM")}</small>
-                ) : null}
-              </span>
-            ))}
+                  className="dayHead"
+                  role="button"
+                  tabIndex={0}
+                  onClick={jump}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      jump();
+                    }
+                  }}
+                >
+                  {unit === "day" ? (
+                    <>
+                      {format(d, "d")}
+                      <small>{format(d, "EEEEE")}</small>
+                      {i === 0 || cols[i - 1].start.getMonth() !== d.getMonth() ? <small>{format(d, "MMM")}</small> : null}
+                    </>
+                  ) : unit === "week" ? (
+                    <>
+                      Week {i + 1}
+                      <small>{format(d, "d MMM")}</small>
+                    </>
+                  ) : (
+                    <>
+                      {format(d, "MMM")}
+                      <small>{format(d, "yyyy")}</small>
+                    </>
+                  )}
+                </span>
+              );
+            })}
           </div>
         </div>
         {milestones.map((m) => (
-          <div key={m.id} className="msBand" style={{ left: 245 + slot(m.date) * DAY, width: DAY }} aria-hidden />
+          <div key={m.id} className="msBand" style={{ left: 245 + xOf(m.date, 0), width: Math.max(10, DAY / cols[Math.max(0, Math.min(cols.length - 1, colOf(parseISO(m.date))))].days) }} aria-hidden />
         ))}
         {milestones.length > 0 && (
           <div className="timelineRow milestoneRow">
@@ -1318,12 +1348,13 @@ function Calendar({
                 <button
                   key={m.id}
                   className="msMark"
-                  style={{ left: slot(m.date) * DAY + 2 }}
+                  style={{ left: xOf(m.date, 0) + 2 }}
                   onClick={() => openMilestone(m)}
                   title={`${m.title} · ${format(parseISO(m.date), "d MMM yyyy")}${m.summary ? "\n" + m.summary : ""}`}
                 >
                   <i />
                   <span>{m.title}</span>
+                  {unit !== "day" && <em className="msDate">{format(parseISO(m.date), "d MMM")}</em>}
                 </button>
               ))}
             </div>
@@ -1355,10 +1386,8 @@ function Calendar({
                     a.dueDate!.localeCompare(b.dueDate!),
                 )
                 .map((t) => {
-                  const start = slot(t.startDate!),
-                    end = Math.max(start, slot(t.dueDate!)),
-                    left = start * DAY,
-                    w = Math.max(DAY, (end - start + 1) * DAY),
+                  const left = xOf(t.startDate!, 0),
+                    w = Math.max(unit === "day" ? DAY : 28, xOf(t.dueDate!, 1) - left),
                     pc = {
                       todo: 0,
                       in_progress: 20,
@@ -1469,106 +1498,6 @@ function Calendar({
       </div>
     );
   };
-  // Month view: whole months side by side (this month and the next three). Week view: Week 1-4 of the chosen month.
-  // Both lay tasks out by due date in equal-size columns, 10 per page.
-  const PERIOD_PAGE = 10;
-  const [periodPages, setPeriodPages] = useState<Record<string, number>>({});
-  useEffect(() => setPeriodPages({}), [view, anchor]);
-  const dueIn = (from: Date, to: Date) => {
-    const a = toISO(from),
-      z = toISO(to);
-    return tasks
-      .filter((t) => t.dueDate && t.dueDate >= a && t.dueDate <= z)
-      .sort((x, y) => x.dueDate!.localeCompare(y.dueDate!) || x.key.localeCompare(y.key));
-  };
-  const periodColumn = (id: string, title: string, sub: string, list: Task[], current: boolean) => {
-    const pageCount = Math.max(1, Math.ceil(list.length / PERIOD_PAGE)),
-      page = Math.min(periodPages[id] ?? 0, pageCount - 1),
-      go = (n: number) => setPeriodPages((p) => ({ ...p, [id]: n }));
-    return (
-      <div key={id} className={"periodCol" + (current ? " current" : "")}>
-        <div className="periodHead">
-          <div>
-            <strong>{title}</strong>
-            <small>{sub}</small>
-          </div>
-          <span>{list.length}</span>
-        </div>
-        <div className="periodList">
-          {list.slice(page * PERIOD_PAGE, (page + 1) * PERIOD_PAGE).map((t) => (
-            <button
-              key={t.id}
-              className={["periodTask", hasDependency(t) && "dependent", lateCustomer(t) && "late"].filter(Boolean).join(" ")}
-              title={t.summary + dependencyTitle(t)}
-              onClick={() => select(t.id)}
-              style={{
-                border: "1px solid " + taskTint(t),
-                background: "color-mix(in srgb, " + taskTint(t) + " 28%, #fff)",
-              }}
-            >
-              <span>
-                {t.key} · {format(parseISO(t.dueDate!), "MMM d")}
-              </span>
-              {t.summary}
-            </button>
-          ))}
-          {list.length === 0 && <p className="periodEmpty">No tasks due</p>}
-        </div>
-        {pageCount > 1 && (
-          <div className="columnPager">
-            <button className="icon small" disabled={page === 0} onClick={() => go(page - 1)} aria-label={"Previous page, " + title}>
-              <ChevronLeft />
-            </button>
-            <span>
-              {page + 1} / {pageCount}
-            </span>
-            <button className="icon small" disabled={page >= pageCount - 1} onClick={() => go(page + 1)} aria-label={"Next page, " + title}>
-              <ChevronRight />
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-  const month = () => (
-    <div className="periodGrid">
-      {Array.from({ length: 4 }, (_, i) => {
-        const first = startOfMonth(addMonths(anchor, i)),
-          last = endOfMonth(first);
-        return periodColumn(
-          toISO(first),
-          format(first, "MMMM"),
-          format(first, "yyyy"),
-          dueIn(first, last),
-          toISO(first) === toISO(startOfMonth(new Date())),
-        );
-      })}
-    </div>
-  );
-  const week = () => {
-    const first = startOfMonth(anchor),
-      last = endOfMonth(first),
-      todayISO = toISO(new Date());
-    return (
-      <>
-        <h3 className="periodTitle">{format(first, "MMMM yyyy")}</h3>
-        <div className="periodGrid">
-          {[0, 1, 2, 3].map((i) => {
-            // Weeks 1-3 are days 1-7, 8-14, 15-21; Week 4 runs to the end of the month.
-            const from = addDays(first, i * 7),
-              to = i === 3 ? last : addDays(from, 6);
-            return periodColumn(
-              "w" + i + toISO(first),
-              "Week " + (i + 1),
-              format(from, "MMM d") + " – " + format(to, "MMM d"),
-              dueIn(from, to),
-              todayISO >= toISO(from) && todayISO <= toISO(to),
-            );
-          })}
-        </div>
-      </>
-    );
-  };
   return (
     <section className="section" id="calendar">
       <div className="sectionHead">
@@ -1620,12 +1549,12 @@ function Calendar({
               requestAnimationFrame(() => {
                 const box = cardRef.current,
                   el = box?.querySelector<HTMLElement>("[data-now]");
-                if (!box || !el || view !== "timeline") return;
+                if (!box || !el) return;
                 const left =
                   el.getBoundingClientRect().left -
                   box.getBoundingClientRect().left +
                   box.scrollLeft;
-                box.scrollTo({ left: Math.max(0, left - 245 - 44 * 2), behavior: "smooth" });
+                box.scrollTo({ left: Math.max(0, left - 245 - UW * 2), behavior: "smooth" });
               });
             }}
           >
@@ -1652,16 +1581,18 @@ function Calendar({
         />
       )}
       <div className="card calendarCard" ref={cardRef}>
-        {view === "timeline" ? timeline() : view === "month" ? month() : week()}
+        {timeline()}
       </div>
-      {view === "timeline" && (
+      {(
         <p className="depLegend">
           <span>
             <span className="swatch bmc" /> Green: {legendClient} side task
           </span>
-          <span>
-            <span className="swatch holiday" /> Grey: weekend / holiday
-          </span>
+          {unit === "day" && (
+            <span>
+              <span className="swatch holiday" /> Grey: weekend / holiday
+            </span>
+          )}
           {tasks.some((t) => hasDependency(t)) && (
             <span>
               <span className="swatch dep" /> Red: dependent task

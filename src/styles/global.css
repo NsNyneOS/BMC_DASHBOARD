@@ -2226,3 +2226,5 @@ td strong+.badge{margin-left:14px}
 .kindSwitch button.active{background:var(--active);color:var(--active-text)}
 .milestonePopup .key{color:var(--ms,#3b82f6)}
 .milestonePopup{border-top:3px solid var(--ms,#3b82f6)}
+.timeline.coarse .lane::before{display:none}
+.msMark .msDate{flex:none;font-style:normal;font-weight:700;font-size:11px;color:var(--ms);padding-left:7px;border-left:1px solid color-mix(in srgb,var(--ms) 40%,transparent)}
