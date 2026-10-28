@@ -14,17 +14,20 @@ type milestoneOut struct {
 	CustomerID   string `json:"customerId"`
 	CustomerCode string `json:"customerCode"`
 	CustomerName string `json:"customerName"`
+	ProjectCode  string `json:"projectCode"` // "" = the whole customer
+	ProjectName  string `json:"projectName"`
 }
 
 const milestoneSelect = `SELECT m.id::text, m.title, m.summary, to_char(m.milestone_date, 'YYYY-MM-DD'),
-       c.id::text, c.code, c.name
-FROM milestones m JOIN customer_master c ON c.id = m.customer_id`
+       c.id::text, c.code, c.name, coalesce(pm.code,''), coalesce(pm.name,'')
+FROM milestones m JOIN customer_master c ON c.id = m.customer_id LEFT JOIN project_master pm ON pm.id = m.project_id`
 
 type milestoneInput struct {
-	Title      *string `json:"title"`
-	Summary    *string `json:"summary"`
-	Date       *string `json:"date"`
-	CustomerID *string `json:"customerId"`
+	Title       *string `json:"title"`
+	Summary     *string `json:"summary"`
+	Date        *string `json:"date"`
+	CustomerID  *string `json:"customerId"`
+	ProjectCode *string `json:"projectCode"` // optional: "" clears it
 }
 
 // listMilestones: customer users see their own customer's milestones; internal users see every customer's,
@@ -52,7 +55,7 @@ func (s *server) listMilestones(w http.ResponseWriter, r *http.Request) {
 	out := []milestoneOut{}
 	for rows.Next() {
 		var m milestoneOut
-		if err := rows.Scan(&m.ID, &m.Title, &m.Summary, &m.Date, &m.CustomerID, &m.CustomerCode, &m.CustomerName); err != nil {
+		if err := rows.Scan(&m.ID, &m.Title, &m.Summary, &m.Date, &m.CustomerID, &m.CustomerCode, &m.CustomerName, &m.ProjectCode, &m.ProjectName); err != nil {
 			writeErr(w, 500, err.Error())
 			return
 		}
@@ -64,7 +67,7 @@ func (s *server) listMilestones(w http.ResponseWriter, r *http.Request) {
 func (s *server) respondMilestone(w http.ResponseWriter, r *http.Request, id string, code int) {
 	var m milestoneOut
 	err := s.db.QueryRow(r.Context(), milestoneSelect+" WHERE m.id = $1::uuid", id).
-		Scan(&m.ID, &m.Title, &m.Summary, &m.Date, &m.CustomerID, &m.CustomerCode, &m.CustomerName)
+		Scan(&m.ID, &m.Title, &m.Summary, &m.Date, &m.CustomerID, &m.CustomerCode, &m.CustomerName, &m.ProjectCode, &m.ProjectName)
 	if err != nil {
 		writeErr(w, 404, "milestone not found")
 		return
@@ -95,10 +98,20 @@ func (s *server) createMilestone(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "customer is required")
 		return
 	}
+	// The project is optional, but when given it must be one of this customer's projects.
+	var projectID any
+	if pc := strings.ToUpper(strings.TrimSpace(deref(in.ProjectCode))); pc != "" {
+		var pid string
+		if s.db.QueryRow(r.Context(), `SELECT id::text FROM project_master WHERE code = $1 AND customer_id = $2::uuid`, pc, *in.CustomerID).Scan(&pid) != nil {
+			writeErr(w, 400, "that project does not belong to the chosen customer")
+			return
+		}
+		projectID = pid
+	}
 	var id string
-	err := s.db.QueryRow(r.Context(), `INSERT INTO milestones (customer_id, title, summary, milestone_date, created_by)
-		SELECT c.id, $2, $3, $4::date, $5::uuid FROM customer_master c WHERE c.id = $1::uuid 
-		RETURNING id::text`, *in.CustomerID, title, strings.TrimSpace(deref(in.Summary)), *in.Date, currentUser(r).ID).Scan(&id)
+	err := s.db.QueryRow(r.Context(), `INSERT INTO milestones (customer_id, title, summary, milestone_date, created_by, project_id)
+		SELECT c.id, $2, $3, $4::date, $5::uuid, $6::uuid FROM customer_master c WHERE c.id = $1::uuid 
+		RETURNING id::text`, *in.CustomerID, title, strings.TrimSpace(deref(in.Summary)), *in.Date, currentUser(r).ID, projectID).Scan(&id)
 	if err != nil {
 		writeErr(w, 400, "that customer does not exist")
 		return
@@ -143,6 +156,21 @@ func (s *server) updateMilestone(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.CustomerID != nil {
 		add("customer_id", "::uuid", *in.CustomerID)
+	}
+	if in.ProjectCode != nil {
+		pc := strings.ToUpper(strings.TrimSpace(*in.ProjectCode))
+		if pc == "" {
+			sets = append(sets, "project_id = NULL")
+		} else {
+			// Must belong to the milestone's (possibly new) customer.
+			var pid string
+			if s.db.QueryRow(r.Context(), `SELECT pm.id::text FROM project_master pm JOIN milestones m ON m.id = $2::uuid
+				WHERE pm.code = $1 AND pm.customer_id = coalesce($3::uuid, m.customer_id)`, pc, r.PathValue("id"), nullable(in.CustomerID)).Scan(&pid) != nil {
+				writeErr(w, 400, "that project does not belong to the chosen customer")
+				return
+			}
+			add("project_id", "::uuid", pid)
+		}
 	}
 	args = append(args, r.PathValue("id"))
 	tag, err := s.db.Exec(r.Context(), "UPDATE milestones SET "+strings.Join(sets, ", ")+" WHERE id = $"+itoa(len(args))+"::uuid", args...)

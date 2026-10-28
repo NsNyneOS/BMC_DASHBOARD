@@ -202,8 +202,6 @@ function Header({
 }) {
   const canBoard = useCan("board.view"),
     canCreate = useCan("task.create"),
-    canMilestone = useCan("milestone.manage"),
-    openMilestone = useTaskStore((s) => s.openMilestone),
     brand = useBrand();
   const filters = useTaskStore((s) => s.filters),
     setFilters = useTaskStore((s) => s.setFilters),
@@ -327,11 +325,6 @@ function Header({
             <LogOut />
           </button>
           </div>
-          {!admin && canMilestone && (
-            <button className="create createAlt" onClick={() => openMilestone("new")} aria-label="Create Milestone" title="Create Milestone">
-              <Plus />
-            </button>
-          )}
           {!admin && canCreate && (
             <button
               className="create"

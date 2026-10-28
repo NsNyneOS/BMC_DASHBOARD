@@ -76,5 +76,5 @@ export const api={
 
 export interface AuditEntry{id:string;userName:string;action:'create'|'update'|'delete';entity:string;entityId:string;label:string;detail:Record<string,unknown>;createdAt:string}
 
-export interface Milestone{id:string;title:string;summary:string;date:string;customerId:string;customerCode:string;customerName:string}
-export interface MilestoneInput{title:string;summary:string;date:string;customerId:string}
+export interface Milestone{id:string;title:string;summary:string;date:string;customerId:string;customerCode:string;customerName:string;projectCode:string;projectName:string}
+export interface MilestoneInput{title:string;summary:string;date:string;customerId:string;projectCode:string}

@@ -1,23 +1,20 @@
 import{importFresh}from'../utils/lazy';
 import{useMemo,useState}from'react';
-import{addDays,addMonths,endOfMonth,format,startOfMonth,subDays}from'date-fns';
+import{addDays,format,subDays}from'date-fns';
 import MultiSelect from'./MultiSelect';
 import{errMsg,Field,FormModal}from'../pages/ui';
 import type{Task}from'../types/task';
 import{projectColor,projectName}from'../utils/projects';
-import type{CalendarView}from'../utils/calendarPdf';
+import{useTaskStore}from'../store/useTaskStore';
 
 type Team='all'|'nyneos'|'customer';
 const iso=(d:Date)=>format(d,'yyyy-MM-dd');
-// The range each view shows on screen, starting from the date the calendar is on.
-const defaults=(view:CalendarView,anchor:Date)=>view==='timeline'
-  ?{from:iso(subDays(anchor,7)),to:iso(addDays(anchor,20))}
-  :view==='month'?{from:iso(startOfMonth(anchor)),to:iso(endOfMonth(addMonths(anchor,3)))}
-  :{from:iso(startOfMonth(anchor)),to:iso(endOfMonth(anchor))};
+// The report starts from the range the timeline shows on screen (a week back, four weeks wide).
+const defaults=(anchor:Date)=>({from:iso(subDays(anchor,7)),to:iso(addDays(anchor,20))});
 
-// "Report" popup on the calendar: same view / team switches as the calendar, then a PDF of that view for the chosen dates.
+// "Report" popup on the calendar: same view / team switches as the calendar, then a slide-deck PDF (Day, Week and Month timelines) for the chosen dates.
 export default function CalendarReportModal({tasks,team:initialTeam,anchor,customerName,customerLabel,onClose}:{tasks:Task[];team:Team;anchor:Date;customerName:string;customerLabel:string;onClose:()=>void}){
-  const view:CalendarView='timeline',[team,setTeam]=useState(initialTeam),[range,setRange]=useState(()=>defaults(view,anchor)),[projects,setProjects]=useState<string[]>([]),[picked,setPicked]=useState<string[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const milestones=useTaskStore(s=>s.milestones),view='timeline',[team,setTeam]=useState(initialTeam),[range,setRange]=useState(()=>defaults(anchor)),[projects,setProjects]=useState<string[]>([]),[picked,setPicked]=useState<string[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const byTeam=useMemo(()=>tasks.filter(t=>team==='all'?true:team==='customer'?t.team==='bmc':t.team!=='bmc'),[tasks,team]);
   const projectOptions=useMemo(()=>[...new Set(tasks.map(t=>t.project))].map(p=>({value:p,label:projectName(p)})).sort((a,b)=>a.label.localeCompare(b.label)),[tasks]);
   // Task choices follow the project filter; a task picked earlier is dropped when its project is unticked.
@@ -27,9 +24,9 @@ export default function CalendarReportModal({tasks,team:initialTeam,anchor,custo
   const download=async()=>{
     setBusy(true);setError('');
     try{
-      const{downloadCalendarPdf}=await importFresh(()=>import('../utils/calendarPdf'));
-      await downloadCalendarPdf(shown,{view,...range,title:`Calendar report - ${view[0].toUpperCase()+view.slice(1)}`,subtitle:`${customerName}   |   Generated ${format(new Date(),'dd MMM yyyy, HH:mm')}`,
-        teamLabel:team==='all'?'All teams':team==='nyneos'?'NyneOS':customerLabel,projectName,projectColor,customerLabel},`calendar-${view}-${format(new Date(),'yyyy-MM-dd')}.pdf`);
+      const{downloadTimelineDeck}=await importFresh(()=>import('../utils/timelineDeck'));
+      await downloadTimelineDeck(shown,{title:'Timeline Report',customerName,...range,teamLabel:team==='all'?'All teams':team==='nyneos'?'NyneOS':customerLabel,projectName,projectColor,
+        milestones:milestones.map(m=>({title:m.title,date:m.date,customer:m.customerName}))},`timeline-${format(new Date(),'yyyy-MM-dd')}.pdf`);
       onClose();
     }catch(e){setError(errMsg(e))}finally{setBusy(false)}
   };
@@ -44,6 +41,6 @@ export default function CalendarReportModal({tasks,team:initialTeam,anchor,custo
     <Field label="To"><input type="date" value={range.to} min={range.from||undefined} onChange={e=>setRange(r=>({...r,to:e.target.value}))}/></Field>
     <Field label="Project" full><MultiSelect ariaLabel="Project" placeholder="All projects" allLabel="All projects" values={projects} onChange={v=>{setProjects(v);setPicked(p=>p.filter(k=>tasks.some(t=>t.key===k&&(!v.length||v.includes(t.project)))))}} options={projectOptions}/></Field>
     <Field label="Task" full><MultiSelect ariaLabel="Task" placeholder="All tasks" allLabel="All tasks" values={picked} onChange={setPicked} options={taskOptions}/></Field>
-    <p className="full reportSummary"><b>{count}</b> task{count===1?'':'s'} due in this {view} report</p>
+    <p className="full reportSummary"><b>{count}</b> task{count===1?'':'s'} due in this {view} report{milestones.some(m=>m.date>=range.from&&m.date<=range.to)&&` · ${milestones.filter(m=>m.date>=range.from&&m.date<=range.to).length} milestone${milestones.filter(m=>m.date>=range.from&&m.date<=range.to).length===1?'':'s'}`}</p>
   </FormModal>;
 }

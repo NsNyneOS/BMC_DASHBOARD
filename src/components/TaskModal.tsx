@@ -81,6 +81,7 @@ export default function TaskModal({
   const clientVisible=watch('clientVisible');
   const team=watch('team');
   const canTeam=useCan('task.team.manage'),canVisibility=useCan('task.visibility.manage'),canDeps=useCan('task.dependencies.edit');
+  const canMilestone=useCan('milestone.manage'),openMilestone=useTaskStore(state=>state.openMilestone);
   const canAssign=useCan('task.assign'),[people,setPeople]=useState<Assignee[]>([]),[peopleError,setPeopleError]=useState(false);
   const projCustomer=projectsMeta.find(p=>p.id===project);
   // The customer side of a task is named after the project's customer; NyneOS's own projects have no customer side.
@@ -123,6 +124,10 @@ export default function TaskModal({
     <div className="modal compactModal" role="dialog" aria-modal="true" aria-labelledby="create-title">
       <header>
         <h2 id="create-title">Create task</h2>
+        {canMilestone&&<div className="kindSwitch" role="tablist" aria-label="What to create">
+          <button type="button" role="tab" aria-selected className="active">Task</button>
+          <button type="button" role="tab" aria-selected={false} onClick={()=>{onClose();openMilestone('new')}}>Milestone</button>
+        </div>}
         <button className="icon" onClick={onClose} aria-label="Close"><X/></button>
       </header>
 
