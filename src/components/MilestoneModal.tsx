@@ -39,13 +39,12 @@ export default function MilestoneModal(){
   const projectOptions=projects.filter(p=>p.customerId===form.customerId&&p.status!=='archived');
   const set=(k:keyof Form)=>(e:{target:{value:string}})=>setForm(f=>({...f,[k]:e.target.value}));
   return <>
-    <FormModal className="milestoneModal" title={isNew?'Add Milestone':readOnly?'Milestone':'Edit Milestone'} submitLabel={readOnly?'Close':isNew?'Add Milestone':'Save changes'} hideCancel={readOnly} busy={busy} error={error} onClose={close} onSubmit={()=>void submit()}>
+    <FormModal className="milestoneModal" title={isNew?'Add Milestone':readOnly?'Milestone':'Edit Milestone'} submitLabel={readOnly?'Close':isNew?'Add Milestone':'Save changes'} hideCancel={readOnly} headerStyle headerActions={!readOnly&&!isNew&&<button type="button" className="icon dangerIcon" onClick={()=>setConfirm(true)} aria-label="Delete milestone" title="Delete milestone"><Trash2/></button>} busy={busy} error={error} onClose={close} onSubmit={()=>void submit()}>
       <Field label="Title *" full><input value={form.title} onChange={set('title')} disabled={readOnly} required/></Field>
       <Field label="Summary" full><textarea value={form.summary} onChange={set('summary')} disabled={readOnly}/></Field>
       <Field label="Date *"><input type="date" value={form.date} min={!isNew&&editing.date<today()?editing.date:today()} onChange={set('date')} disabled={readOnly} required/></Field>
       <Field label="Customer *" hint="The milestone is shown on this customer's dashboard"><ModernSelect ariaLabel="Customer" searchable disabled={readOnly} value={form.customerId} onChange={v=>setForm(f=>({...f,customerId:v,projectCode:''}))} options={[{value:'',label:'Select customer…'},...clients.map(c=>({value:c.id,label:c.name}))]}/></Field>
       <Field label="Project" full hint="Optional. Leave empty for the whole customer"><ModernSelect ariaLabel="Project" searchable disabled={readOnly||!form.customerId} value={form.projectCode} onChange={v=>setForm(f=>({...f,projectCode:v}))} options={[{value:'',label:'Whole customer'},...projectOptions.map(p=>({value:p.id,label:p.name}))]}/></Field>
-      {!readOnly&&!isNew&&<div className="full"><button type="button" className="danger" onClick={()=>setConfirm(true)}><Trash2/> Delete Milestone</button></div>}
     </FormModal>
     <ConfirmDialog open={confirm} danger title="Delete Milestone?" confirmLabel="Yes, delete" message={`"${form.title}" will be removed from the timeline and alerts.`} onCancel={()=>setConfirm(false)}
       onConfirm={()=>{setConfirm(false);if(!isNew)void remove(editing.id).then(close).catch(e=>setError(errMsg(e)))}}/>

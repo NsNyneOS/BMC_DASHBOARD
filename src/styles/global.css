@@ -2228,3 +2228,10 @@ td strong+.badge{margin-left:14px}
 .milestonePopup{border-top:3px solid var(--ms,#3b82f6)}
 .timeline.coarse .lane::before{display:none}
 .msMark .msDate{flex:none;font-style:normal;font-weight:700;font-size:11px;color:var(--ms);padding-left:7px;border-left:1px solid color-mix(in srgb,var(--ms) 40%,transparent)}
+.milestoneRow>span.msTitleCell{justify-content:flex-start;padding-left:14px;min-width:0}
+.milestoneRow>span.msTitleCell b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.milestoneRow>span.msTitleCell svg{flex:none}
+
+/* Milestone row label: left-aligned, wraps onto two lines instead of being cut off on both sides */
+.milestoneRow>span.msTitleCell{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;text-align:left;white-space:normal;overflow:visible;padding:6px 12px}
+.milestoneRow>span.msTitleCell b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;text-overflow:clip;font-size:12px;line-height:1.25;overflow-wrap:anywhere}

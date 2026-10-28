@@ -28,8 +28,9 @@ export function useLoad<T>(load:()=>Promise<T>,deps:unknown[]=[]){
   return{data,error,loading,reload:run};
 }
 
-export function FormModal({title,onClose,onSubmit,busy=false,error='',submitLabel='Save',className='',hideCancel=false,children}:{
-  className?:string;hideCancel?:boolean;title:string;onClose:()=>void;onSubmit:()=>void;busy?:boolean;error?:string;submitLabel?:string;children:ReactNode;
+export function FormModal({title,onClose,onSubmit,busy=false,error='',submitLabel='Save',className='',hideCancel=false,headerStyle=false,headerActions,children}:{
+  /** Task-popup layout: Save (and any extra action buttons) sit in the header beside the close button; no footer. */
+  headerStyle?:boolean;headerActions?:ReactNode;className?:string;hideCancel?:boolean;title:string;onClose:()=>void;onSubmit:()=>void;busy?:boolean;error?:string;submitLabel?:string;children:ReactNode;
 }){
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose()};
@@ -39,14 +40,20 @@ export function FormModal({title,onClose,onSubmit,busy=false,error='',submitLabe
   const submit=(e:FormEvent)=>{e.preventDefault();if(!busy)onSubmit()};
   return <div className="backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
     <div className={"modal compactModal adminModal "+className} role="dialog" aria-modal="true" aria-label={title}>
-      <header><h2>{title}</h2><button type="button" className="icon" onClick={onClose} aria-label="Close"><X/></button></header>
+      <header><h2>{title}</h2>
+        <div className="popupHeadActions">
+          {headerStyle&&!hideCancel&&<button type="button" className="primary saveBtn" disabled={busy} aria-busy={busy} onClick={()=>{if(!busy)onSubmit()}}>{busy?'Saving…':submitLabel}</button>}
+          {headerStyle&&headerActions}
+          <button type="button" className="icon" onClick={onClose} aria-label="Close"><X/></button>
+        </div></header>
       <form onSubmit={submit}>
         <div className="formGrid">{children}</div>
         {error&&<p className="loginError formError" role="alert">{error}</p>}
-        <footer className="simpleFooter">
+        {!headerStyle&&<footer className="simpleFooter">
           {!hideCancel&&<button type="button" className="pill" onClick={onClose}>Cancel</button>}
           <button className="primary" disabled={busy}>{busy?'Saving…':submitLabel}</button>
-        </footer>
+        </footer>}
+        {headerStyle&&<button type="submit" hidden aria-hidden tabIndex={-1}/>}
       </form>
     </div>
   </div>;

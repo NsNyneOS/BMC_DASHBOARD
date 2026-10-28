@@ -1,9 +1,12 @@
 package app
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type milestoneOut struct {
@@ -112,8 +115,13 @@ func (s *server) createMilestone(w http.ResponseWriter, r *http.Request) {
 	err := s.db.QueryRow(r.Context(), `INSERT INTO milestones (customer_id, title, summary, milestone_date, created_by, project_id)
 		SELECT c.id, $2, $3, $4::date, $5::uuid, $6::uuid FROM customer_master c WHERE c.id = $1::uuid 
 		RETURNING id::text`, *in.CustomerID, title, strings.TrimSpace(deref(in.Summary)), *in.Date, currentUser(r).ID, projectID).Scan(&id)
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		writeErr(w, 400, "that customer does not exist")
+		return
+	}
+	if err != nil {
+		// A database error (for example a migration that has not been run) is not "customer missing": say what happened.
+		writeErr(w, 500, "could not save the milestone: "+err.Error())
 		return
 	}
 	s.respondMilestone(w, r, id, 201)
