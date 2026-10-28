@@ -1367,6 +1367,8 @@ function Calendar({
           </div>
         </div>
         {msBands(wholeCustomer)}
+        {/* A project milestone's highlight also runs the full height, up through the date header. */}
+        {msBands(milestones.filter((m) => !!m.projectCode && groups.some((p) => p.toUpperCase() === m.projectCode.toUpperCase())))}
         {msProjectRows(wholeCustomer)}
         {groups.map((p) => (
           <div key={p} style={{ position: "relative" }}>
@@ -1385,7 +1387,6 @@ function Calendar({
                 {projectName(p)}
               </b>
             </button>
-            {!collapsed[p] && msBands(milestones.filter((m) => m.projectCode?.toUpperCase() === p.toUpperCase()))}
             {!collapsed[p] && msProjectRows(milestones.filter((m) => m.projectCode?.toUpperCase() === p.toUpperCase()))}
             {!collapsed[p] &&
               dated
