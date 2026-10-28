@@ -1279,26 +1279,46 @@ function Calendar({
             aria-hidden
           />
         )),
-      // A project's milestones get one row each, labelled with the milestone's title (the date is on the marker).
-      msProjectRows = (list: typeof milestones) =>
-        list.map((m) => (
-          <div className="timelineRow milestoneRow" key={m.id}>
-            <span className="msTitleCell" title={m.summary || m.title}>
-              <Flag size={13} /> <b>{m.title}</b>
+      // All of a section's milestones share one "Milestones" row, each drawn as a diamond that opens into a pill with its title on hover (click to edit).
+      // Milestones that fall on the same date are stacked: each extra one adds a row.
+      msSection = (list: typeof milestones) => {
+        if (!list.length) return null;
+        const byDate = new Map<string, typeof milestones>();
+        list.forEach((m) => byDate.set(m.date, [...(byDate.get(m.date) ?? []), m]));
+        const groupsByDate = [...byDate.values()],
+          rowCount = Math.max(...groupsByDate.map((g) => g.length));
+        return Array.from({ length: rowCount }, (_, r) => (
+          <div className="timelineRow milestoneRow" key={r}>
+            <span className="msTitleCell">
+              {r === 0 && (
+                <>
+                  <Flag size={13} /> <b>Milestones</b>
+                </>
+              )}
             </span>
             <div className="lane">
-              <button
-                className="msMark"
-                style={{ left: xOf(m.date, 0) + 2 }}
-                onClick={() => openMilestone(m)}
-                title={`${m.title} · ${format(parseISO(m.date), "d MMM yyyy")}${m.summary ? "\n" + m.summary : ""}`}
-              >
-                <i />
-                <span>{format(parseISO(m.date), "d MMM yyyy")}</span>
-              </button>
+              {groupsByDate
+                .map((g) => g[r])
+                .filter(Boolean)
+                .map((m) => (
+                  <button
+                    key={m.id}
+                    className="msDiamond"
+                    style={{ left: xOf(m.date, 0.5) - 10 }}
+                    onClick={() => openMilestone(m)}
+                    aria-label={`${m.title}, ${format(parseISO(m.date), "d MMM yyyy")}`}
+                    title={m.summary || undefined}
+                  >
+                    <i />
+                    <span className="msLabel">
+                      {m.title} <em>{format(parseISO(m.date), "d MMM yyyy")}</em>
+                    </span>
+                  </button>
+                ))}
             </div>
           </div>
         ));
+      };
     return (
       <div
         className={"timeline" + (unit === "day" ? "" : " coarse")}
@@ -1367,9 +1387,7 @@ function Calendar({
           </div>
         </div>
         {msBands(wholeCustomer)}
-        {/* A project milestone's highlight also runs the full height, up through the date header. */}
-        {msBands(milestones.filter((m) => !!m.projectCode && groups.some((p) => p.toUpperCase() === m.projectCode.toUpperCase())))}
-        {msProjectRows(wholeCustomer)}
+        {msSection(wholeCustomer)}
         {groups.map((p) => (
           <div key={p} style={{ position: "relative" }}>
             <button
@@ -1387,7 +1405,8 @@ function Calendar({
                 {projectName(p)}
               </b>
             </button>
-            {!collapsed[p] && msProjectRows(milestones.filter((m) => m.projectCode?.toUpperCase() === p.toUpperCase()))}
+            {!collapsed[p] && msBands(milestones.filter((m) => m.projectCode?.toUpperCase() === p.toUpperCase()))}
+            {!collapsed[p] && msSection(milestones.filter((m) => m.projectCode?.toUpperCase() === p.toUpperCase()))}
             {!collapsed[p] &&
               dated
                 .filter((t) => t.project === p)

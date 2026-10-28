@@ -2235,3 +2235,19 @@ td strong+.badge{margin-left:14px}
 /* Milestone row label: left-aligned, wraps onto two lines instead of being cut off on both sides */
 .milestoneRow>span.msTitleCell{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;text-align:left;white-space:normal;overflow:visible;padding:6px 12px}
 .milestoneRow>span.msTitleCell b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;text-overflow:clip;font-size:12px;line-height:1.25;overflow-wrap:anywhere}
+
+/* Milestones: a diamond per milestone on one shared row; the title shows on hover */
+.milestoneRow .msDiamond{position:absolute;top:50%;transform:translateY(-50%);width:20px;height:20px;padding:0;border:0;background:transparent;display:grid;place-items:center;z-index:2}
+.milestoneRow .msDiamond i{width:14px;height:14px;transform:rotate(45deg);background:var(--ms);border-radius:3px;box-shadow:0 2px 8px color-mix(in srgb,var(--ms) 55%,transparent);transition:transform .12s}
+.milestoneRow .msDiamond:hover i,.milestoneRow .msDiamond:focus-visible i{transform:rotate(45deg) scale(1.25)}
+.milestoneRow .msDiamond:hover::after,.milestoneRow .msDiamond:focus-visible::after{content:attr(data-tip);position:absolute;left:calc(100% + 6px);top:50%;transform:translateY(-50%);z-index:8;white-space:pre;max-width:320px;overflow:hidden;text-overflow:ellipsis;text-align:left;padding:6px 12px;border-radius:10px;background:var(--active,#111);color:var(--active-text,#fff);font-size:12px;font-weight:600;line-height:1.35;box-shadow:var(--shadow)}
+
+/* The diamond opens into the title pill on hover / focus */
+.milestoneRow .msDiamond{width:auto;height:30px;min-width:20px;padding:0 3px;gap:0;display:inline-flex;align-items:center;justify-content:flex-start;border:1px solid transparent;border-radius:99px;transition:background .2s,border-color .2s,padding .25s,gap .25s,box-shadow .2s}
+.milestoneRow .msDiamond i{flex:none;margin:0 3px}
+.milestoneRow .msDiamond .msLabel{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;font-size:12px;font-weight:700;color:var(--text);transition:max-width .28s ease,opacity .2s ease}
+.milestoneRow .msDiamond .msLabel em{font-style:normal;font-weight:600;color:var(--ms);padding-left:6px}
+.milestoneRow .msDiamond:hover,.milestoneRow .msDiamond:focus-visible{z-index:6;gap:7px;padding:0 14px 0 6px;background:color-mix(in srgb,var(--ms) 18%,var(--surface));border-color:color-mix(in srgb,var(--ms) 60%,var(--border));box-shadow:0 4px 14px color-mix(in srgb,var(--ms) 30%,transparent)}
+.milestoneRow .msDiamond:hover .msLabel,.milestoneRow .msDiamond:focus-visible .msLabel{max-width:320px;opacity:1}
+.milestoneRow .msDiamond:hover i,.milestoneRow .msDiamond:focus-visible i{transform:rotate(45deg)}
+.milestoneRow .msDiamond:hover::after,.milestoneRow .msDiamond:focus-visible::after{content:none}
